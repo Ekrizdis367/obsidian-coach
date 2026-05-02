@@ -1,0 +1,2273 @@
+/* ==========================================================================
+   Coach plugin styles
+   ========================================================================== */
+
+/* --- Mobile / iOS Safari reset ------------------------------------------- *
+ *
+ * iOS Safari (and Obsidian Mobile, which uses the same WebKit engine)
+ * applies its own chrome to native form controls — pill-shaped number
+ * inputs, glossy gradient buttons, blue tap-highlight rectangles, and
+ * an automatic zoom-on-focus when the input font is smaller than 16 px.
+ * Everything below strips those defaults from every wp-* control so the
+ * UI looks the same on phone as it does on desktop. Mirrors the fix
+ * applied in the Pantry plugin.
+ *
+ * The selectors use [class*="wp-"] so any element rooted under a plugin
+ * container — including modals like wp-template-modal, wp-favorite-modal,
+ * and wp-custom-meal-modal — picks up the reset automatically without
+ * us having to remember to add new containers to a hard-coded list.
+ */
+
+[class*="wp-"] input,
+[class*="wp-"] button,
+[class*="wp-"] select,
+[class*="wp-"] textarea {
+	/* Obsidian Mobile ships its own CSS that rounds form controls into
+	 * pills (border-radius ~= 999px) with high-specificity rules we can't
+	 * beat with normal selectors. Using !important here is the only way
+	 * to force the input shape to match the desktop UI — scoped to
+	 * plugin containers so we don't touch Obsidian's own UI. */
+	-webkit-appearance: none !important;
+	appearance: none !important;
+	-webkit-tap-highlight-color: transparent;
+	box-shadow: none;
+	background-clip: padding-box;
+	/* Hardcoded 4px (not var(--radius-s)) because Obsidian Mobile's theme
+	 * overrides --radius-s with a much larger value that would otherwise
+	 * keep the inputs looking pill-shaped. */
+	border-radius: 4px !important;
+}
+
+[class*="wp-"] input,
+[class*="wp-"] textarea {
+	/* iOS gives <input> elements a baked-in min-height that's taller than
+	 * the text line-box, so digits appear top-aligned with a visible gap
+	 * below. Removing min-height + pinning line-height collapses the input
+	 * to its content height so the text centers against the padding.
+	 * (Pantry plugin uses the same pair on its stepper input.) */
+	min-height: 0 !important;
+	line-height: 1 !important;
+	vertical-align: middle;
+}
+
+/* Hide the native spin buttons on every number input the plugin renders.
+ * Per-input rules below already do this for some inputs; this universal
+ * selector catches anything we add later without revisiting CSS. */
+[class*="wp-"] input[type="number"]::-webkit-inner-spin-button,
+[class*="wp-"] input[type="number"]::-webkit-outer-spin-button {
+	-webkit-appearance: none;
+	margin: 0;
+}
+
+/* Touch devices only: bump input font to 16 px so iOS Safari doesn't
+ * auto-zoom when the field gains focus. Desktop keeps the original
+ * compact UI font set by each input class. */
+@media (pointer: coarse) {
+	[class*="wp-"] input[type="number"],
+	[class*="wp-"] input[type="text"],
+	[class*="wp-"] input[type="date"],
+	[class*="wp-"] textarea {
+		font-size: 16px;
+	}
+}
+
+/* --- Codeblock wrapper chrome reset -------------------------------------- *
+ *
+ * Strip Obsidian's default codeblock-wrapper chrome (background, border,
+ * padding, the chunky ~1em margin) around any Coach card rendered from a
+ * fenced code block — workout, meals, water. Without this the inner card
+ * renders inside a second visible frame and ends up with a bigger gap
+ * than cards from other plugins, which makes a daily note that stacks
+ * several plugins' cards look uneven.
+ *
+ * Targets the Reading-mode wrappers (<pre>, .el-pre) and the Live Preview
+ * wrapper (.cm-embed-block) so the visual is consistent across both
+ * modes. Inter-card spacing is driven by the card's own margin (set on
+ * the .wp-* rules below to 2px 0 — matching Muse), so this rule sets the
+ * wrapper's margin to 0.
+ */
+:is(pre, .el-pre, .cm-embed-block):has(.wp-workout),
+:is(pre, .el-pre, .cm-embed-block):has(.wp-meals),
+:is(pre, .el-pre, .cm-embed-block):has(.wp-water--standalone) {
+	margin: 0;
+	padding: 0;
+	background: transparent;
+	border: none;
+}
+
+/* --- Workout block ------------------------------------------------------- */
+
+.wp-workout {
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-m, 8px);
+	padding: 12px 14px;
+	background: var(--background-secondary);
+	/* 2px vertical margin gives a faint hairline seam between adjacent
+	 * cards in a daily note (matches Muse). Margin lives on the card
+	 * itself rather than the codeblock wrapper so it works equally in
+	 * Reading mode and Live Preview, where the wrapper element differs. */
+	margin: 2px 0;
+}
+
+.wp-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	margin-bottom: 10px;
+	padding-bottom: 8px;
+	border-bottom: 1px solid var(--background-modifier-border);
+	flex-wrap: wrap;
+}
+
+.wp-header-left {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.wp-header-summary {
+	/* Only visible when the card is collapsed (see .wp-workout--collapsed
+	 * rules below). Expanded cards show the full sections instead. */
+	display: none;
+	color: var(--text-muted);
+	font-size: var(--font-ui-small, 12px);
+}
+
+.wp-collapse-toggle {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 28px;
+	height: 28px;
+	padding: 0;
+	background: transparent;
+	border: none;
+	color: var(--text-muted);
+	cursor: pointer;
+	border-radius: var(--radius-s, 4px);
+	transition: transform 120ms ease, background-color 120ms ease;
+}
+
+.wp-collapse-toggle:hover {
+	background: var(--background-modifier-hover);
+	color: var(--text-normal);
+}
+
+.wp-workout--collapsed .wp-collapse-toggle {
+	/* Chevron points right when the card is collapsed, down when open. */
+	transform: rotate(-90deg);
+}
+
+/* Collapsed state: keep only the header's identifying row visible (title,
+ * date, duration, summary, and toggle button) and hide everything else so
+ * the card shrinks to a single row when the user isn't actively tracking. */
+.wp-workout--collapsed {
+	padding-bottom: 12px;
+}
+
+.wp-workout--collapsed .wp-header {
+	margin-bottom: 0;
+	padding-bottom: 0;
+	border-bottom: none;
+}
+
+.wp-workout--collapsed .wp-header-summary {
+	display: block;
+}
+
+.wp-workout--collapsed .wp-bodyweight,
+.wp-workout--collapsed .wp-measurements,
+.wp-workout--collapsed .wp-exercises,
+.wp-workout--collapsed .wp-cardio,
+.wp-workout--collapsed .wp-empty {
+	display: none;
+}
+
+.wp-title {
+	font-weight: 600;
+	font-size: var(--font-ui-medium, 14px);
+}
+
+.wp-date {
+	color: var(--text-muted);
+	font-size: var(--font-ui-small, 12px);
+}
+
+/* Body weight lives on its own row under the header, giving it a dedicated
+ * spot that isn't fighting for space with the collapse chevron or wrapping
+ * onto a second header line on narrow screens. */
+.wp-bodyweight {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	font-size: var(--font-ui-small, 12px);
+	color: var(--text-muted);
+	margin-bottom: 8px;
+}
+
+.wp-bodyweight-label {
+	font-weight: 500;
+}
+
+.wp-bodyweight-input {
+	width: 80px;
+	padding: 2px 6px;
+	background: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s, 4px);
+	color: var(--text-normal);
+	font-variant-numeric: tabular-nums;
+	text-align: center;
+}
+
+.wp-bodyweight-input::-webkit-inner-spin-button,
+.wp-bodyweight-input::-webkit-outer-spin-button {
+	-webkit-appearance: none;
+	margin: 0;
+}
+
+.wp-exercises,
+.wp-cardio {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+
+.wp-cardio {
+	margin-top: 12px;
+}
+
+.wp-section-heading {
+	font-weight: 600;
+	font-size: var(--font-ui-small, 12px);
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	color: var(--text-muted);
+	padding: 0 4px;
+	margin-bottom: -4px;
+}
+
+/* Duration-only cardio: minutes input + "min" unit + commit.
+ *
+ * The selector intentionally stacks both classes so this rule beats
+ * `.wp-set` (defined later in the file with a 6-column template) on
+ * specificity — otherwise the minutes input gets dropped into `.wp-set`'s
+ * 22px set-number column and looks squished. */
+.wp-set.wp-cardio-row {
+	grid-template-columns: minmax(80px, 1fr) auto auto;
+}
+
+/* Distance variant has 6 cells: minutes / "min" / distance / unit /
+ * finish / commit. Give the three numeric inputs equal flex weight so
+ * the minutes input doesn't collapse to its content width. */
+.wp-set.wp-cardio-row--with-distance {
+	grid-template-columns:
+		minmax(60px, 1fr) auto
+		minmax(60px, 1fr) auto
+		minmax(60px, 1fr) auto;
+}
+
+.wp-exercise {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	padding: 8px;
+	border-radius: var(--radius-s, 6px);
+	background: var(--background-primary);
+}
+
+.wp-exercise-head {
+	display: grid;
+	grid-template-columns: 1fr auto;
+	grid-template-rows: auto auto;
+	gap: 2px 12px;
+	align-items: baseline;
+}
+
+.wp-exercise-name {
+	font-weight: 600;
+	grid-column: 1 / 2;
+}
+
+.wp-exercise-target {
+	color: var(--text-muted);
+	font-size: var(--font-ui-small, 12px);
+	grid-column: 2 / 3;
+	text-align: right;
+}
+
+.wp-prev {
+	grid-column: 1 / 3;
+	color: var(--text-muted);
+	font-size: var(--font-ui-small, 12px);
+}
+
+/* --- Set rows ------------------------------------------------------------ */
+
+.wp-sets {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.wp-set {
+	display: grid;
+	/* The 7th `auto` column is for `.wp-pr-badges`, which is always
+	 * appended as a child of the row. Without an explicit column the
+	 * badges div overflows onto an implicit second grid row and inherits
+	 * the parent's line-height, which shows up as an empty band below
+	 * every set row on mobile. */
+	grid-template-columns: 22px minmax(60px, 1fr) auto minmax(60px, 1fr) auto auto auto;
+	align-items: center;
+	gap: 8px;
+	padding: 4px 8px;
+	border-radius: var(--radius-s, 4px);
+	background: var(--background-secondary-alt, var(--background-secondary));
+}
+
+.wp-set--bodyweight {
+	/* 5 columns: set# / reps / "reps" / commit / badges. */
+	grid-template-columns: 22px minmax(60px, 1fr) auto auto auto;
+}
+
+.wp-set.is-logged {
+	background: color-mix(in srgb, var(--interactive-accent) 12%, transparent);
+}
+
+.wp-set-num {
+	font-variant-numeric: tabular-nums;
+	color: var(--text-muted);
+	text-align: center;
+}
+
+.wp-set-input {
+	width: 100%;
+	min-width: 0;
+	padding: 2px 6px;
+	background: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s, 4px);
+	color: var(--text-normal);
+	font-variant-numeric: tabular-nums;
+	text-align: center;
+}
+
+.wp-set-input::-webkit-inner-spin-button,
+.wp-set-input::-webkit-outer-spin-button {
+	-webkit-appearance: none;
+	margin: 0;
+}
+
+.wp-set-at,
+.wp-set-unit {
+	color: var(--text-muted);
+	font-size: var(--font-ui-small, 12px);
+}
+
+.wp-set-check {
+	background: transparent;
+	border: none;
+	color: var(--text-muted);
+	cursor: pointer;
+	padding: 4px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.wp-set.is-logged .wp-set-check {
+	color: var(--interactive-accent);
+}
+
+.wp-set-check:hover {
+	color: var(--text-normal);
+}
+
+/* Drop-set rows (sets 2..N of a drop-set exercise): the weight input keeps
+ * a "DS" placeholder so the user can leave it blank or overwrite with the
+ * actual reduced weight. The row gets a subtle accent on the left edge so
+ * it's visually grouped with the working set above it. */
+.wp-set--drop {
+	border-left: 2px solid color-mix(in srgb, var(--text-warning, var(--text-accent)) 60%, transparent);
+	padding-left: 6px;
+}
+
+.wp-set-weight--drop::placeholder {
+	color: var(--text-warning, var(--text-accent));
+	font-weight: 600;
+	letter-spacing: 0.05em;
+	opacity: 1;
+}
+
+/*
+ * Touch-device tuning for set rows.
+ *
+ * An earlier mobile override forced `.wp-set` to `align-items: stretch;
+ * min-height: 40px` and pinned `.wp-set-input` to `min-height: 32px` to
+ * compensate for iOS number inputs that drew their digits anchored to
+ * the top of the field. The global iOS reset at the top of this file
+ * (min-height: 0 / line-height: 1 / appearance: none) now handles that
+ * anchoring correctly, so the stretch override ends up making the input
+ * 40px tall with its digits still near the top — visually, that's the
+ * "extra padding on the bottom" of the set row.
+ *
+ * Keep only what mobile actually needs: comfortable row padding and
+ * centered small text. The row falls back to `align-items: center`
+ * from the base `.wp-set` rule, which means the taller cell (the set
+ * checkmark button) sets the row height and everything else sits in
+ * the middle with symmetric whitespace.
+ */
+@media (pointer: coarse) {
+	.wp-set {
+		padding: 6px 8px;
+	}
+
+	.wp-set-num,
+	.wp-set-at,
+	.wp-set-unit {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+}
+
+/* --- Exercise actions ---------------------------------------------------- */
+
+.wp-exercise-actions {
+	display: flex;
+	gap: 6px;
+	margin-top: 4px;
+}
+
+.wp-btn {
+	padding: 3px 10px;
+	border-radius: var(--radius-s, 4px);
+	background: var(--background-secondary);
+	border: 1px solid var(--background-modifier-border);
+	color: var(--text-normal);
+	cursor: pointer;
+	font-size: var(--font-ui-small, 12px);
+}
+
+.wp-btn:hover {
+	background: var(--background-modifier-hover);
+}
+
+.wp-empty {
+	padding: 16px;
+	text-align: center;
+	color: var(--text-muted);
+}
+
+.wp-error {
+	padding: 8px 12px;
+	border-radius: var(--radius-s, 4px);
+	background: var(--background-modifier-error);
+	color: var(--text-error);
+	font-family: var(--font-monospace);
+	font-size: var(--font-ui-small, 12px);
+}
+
+/* --- Floating rest timer ------------------------------------------------- */
+
+.wp-rest-timer {
+	position: fixed;
+	bottom: 16px;
+	right: 16px;
+	z-index: var(--layer-status-bar, 30);
+	background: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-m, 8px);
+	box-shadow: var(--shadow-l, 0 6px 20px rgba(0,0,0,0.18));
+	padding: 10px 12px;
+	min-width: 180px;
+}
+
+.wp-rest-timer-inner {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.wp-rest-timer-label {
+	color: var(--text-muted);
+	font-size: var(--font-ui-small, 12px);
+}
+
+.wp-rest-timer-time {
+	font-size: 28px;
+	font-weight: 600;
+	font-variant-numeric: tabular-nums;
+	letter-spacing: 0.02em;
+}
+
+.wp-rest-timer.is-complete .wp-rest-timer-time {
+	color: var(--interactive-accent);
+}
+
+.wp-rest-timer-controls {
+	display: flex;
+	gap: 6px;
+	margin-top: 4px;
+}
+
+.wp-rest-timer-btn {
+	flex: 1;
+	padding: 4px 6px;
+	background: var(--background-secondary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s, 4px);
+	color: var(--text-normal);
+	cursor: pointer;
+	font-size: var(--font-ui-small, 12px);
+}
+
+.wp-rest-timer-btn:hover {
+	background: var(--background-modifier-hover);
+}
+
+.wp-rest-timer-btn--close {
+	flex: 0 0 auto;
+}
+
+/* --- Settings tab -------------------------------------------------------- */
+
+.wp-settings-list {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	margin: 8px 0 16px;
+}
+
+.wp-collapsible {
+	margin: 0 0 18px;
+}
+
+.wp-collapsible > .wp-collapsible-summary {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	cursor: pointer;
+	padding: 6px 10px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s, 6px);
+	background: var(--background-secondary);
+	color: var(--text-normal);
+	font-size: var(--font-ui-small, 12px);
+	font-weight: 500;
+	list-style: none;
+	user-select: none;
+}
+
+.wp-collapsible > .wp-collapsible-summary::-webkit-details-marker {
+	display: none;
+}
+
+.wp-collapsible > .wp-collapsible-summary::before {
+	content: "▸";
+	display: inline-block;
+	font-size: 10px;
+	color: var(--text-muted);
+	transition: transform 120ms ease;
+}
+
+.wp-collapsible[open] > .wp-collapsible-summary::before {
+	transform: rotate(90deg);
+}
+
+.wp-collapsible > .wp-collapsible-summary:hover {
+	background: var(--background-modifier-hover);
+}
+
+.wp-collapsible[open] > .wp-settings-list {
+	margin-top: 10px;
+}
+
+.wp-fav-icon {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 16px;
+	height: 16px;
+	margin-right: 6px;
+	color: var(--color-yellow, #c9b458);
+	vertical-align: -3px;
+}
+
+.wp-fav-icon .svg-icon {
+	width: 14px;
+	height: 14px;
+}
+
+.wp-settings-row {
+	display: grid;
+	grid-template-columns: 1fr auto;
+	grid-template-rows: auto auto;
+	gap: 2px 12px;
+	padding: 8px 10px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s, 6px);
+	background: var(--background-secondary);
+}
+
+.wp-settings-row-main {
+	grid-column: 1 / 2;
+	font-weight: 500;
+}
+
+.wp-settings-row-meta {
+	grid-column: 1 / 2;
+	color: var(--text-muted);
+	font-size: var(--font-ui-small, 12px);
+}
+
+.wp-settings-row-actions {
+	grid-column: 2 / 3;
+	grid-row: 1 / 3;
+	display: flex;
+	gap: 6px;
+	align-items: center;
+}
+
+.wp-modal-actions {
+	display: flex;
+	justify-content: flex-end;
+	gap: 8px;
+	margin-top: 16px;
+}
+
+.wp-template-modal {
+	max-width: 640px;
+}
+
+.wp-template-exercise-list {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	margin: 8px 0;
+}
+
+.wp-template-exercise {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	padding: 6px 8px;
+	background: var(--background-secondary);
+	border-radius: var(--radius-s, 4px);
+}
+
+/* Top line: name + badges + numeric inputs share one row and may wrap. */
+.wp-template-exercise-main {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px;
+}
+
+/* Bottom line: action buttons live on their own row so the inputs row
+ * stays uncluttered, especially on mobile. Wraps if needed. */
+.wp-template-exercise-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	align-items: center;
+	padding-top: 4px;
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+.wp-template-exercise-name {
+	flex: 1 1 140px;
+	min-width: 120px;
+	font-weight: 500;
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.wp-template-exercise-badges {
+	display: inline-flex;
+	gap: 4px;
+}
+
+.wp-template-badge {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-width: 22px;
+	padding: 1px 5px;
+	border-radius: 999px;
+	font-size: var(--font-ui-smaller, 10px);
+	font-weight: 700;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+}
+
+.wp-template-badge--ds {
+	background: color-mix(in srgb, var(--text-warning, var(--text-accent)) 22%, transparent);
+	color: var(--text-warning, var(--text-accent));
+}
+
+.wp-template-badge--f {
+	background: color-mix(in srgb, var(--text-error, var(--text-accent)) 22%, transparent);
+	color: var(--text-error, var(--text-accent));
+}
+
+.wp-template-badge--group {
+	background: color-mix(in srgb, var(--interactive-accent) 20%, transparent);
+	color: var(--interactive-accent);
+}
+
+/* Highlight icon-toggle buttons in the template editor when their flag
+ * is on (drop-set, to-failure). Uses Obsidian's standard accent color. */
+.wp-template-toggle--active {
+	background: color-mix(in srgb, var(--interactive-accent) 22%, transparent) !important;
+	color: var(--interactive-accent) !important;
+}
+
+.wp-template-exercise-inputs {
+	display: flex;
+	gap: 8px;
+}
+
+.wp-template-input {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-end;
+	font-size: var(--font-ui-small, 12px);
+	color: var(--text-muted);
+}
+
+.wp-template-input input {
+	width: 64px;
+	padding: 2px 6px;
+	background: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s, 4px);
+	color: var(--text-normal);
+	font-variant-numeric: tabular-nums;
+}
+
+.wp-template-section-label {
+	font-weight: 600;
+	font-size: var(--font-ui-small, 12px);
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	color: var(--text-muted);
+	margin: 8px 0 2px;
+}
+
+.wp-template-empty {
+	padding: 6px 8px;
+	color: var(--text-muted);
+	font-size: var(--font-ui-small, 12px);
+	font-style: italic;
+}
+
+/* --- Analytics view ------------------------------------------------------ */
+
+.wp-analytics {
+	padding: 0 14px 14px;
+}
+
+.wp-analytics-banner {
+	margin: 0 0 14px;
+	padding: 10px 12px;
+	border: 1px solid var(--background-modifier-border);
+	border-left: 3px solid var(--color-orange, var(--text-warning, #d99c4a));
+	border-radius: var(--radius-s, 4px);
+	background: var(--background-secondary);
+	color: var(--text-normal);
+	font-size: var(--font-ui-small, 12px);
+}
+
+.wp-analytics-banner-title {
+	font-weight: 600;
+	margin-bottom: 4px;
+	color: var(--color-orange, var(--text-warning, #d99c4a));
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	font-size: var(--font-ui-smaller, 11px);
+}
+
+.wp-analytics-banner-body {
+	color: var(--text-muted);
+	line-height: 1.4;
+}
+
+.wp-analytics-selector {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	margin-bottom: 12px;
+}
+
+.wp-analytics-selector select {
+	padding: 4px 8px;
+	background: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s, 4px);
+	color: var(--text-normal);
+}
+
+.wp-analytics-summary {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 8px;
+	margin-bottom: 16px;
+}
+
+.wp-stat {
+	padding: 8px 10px;
+	background: var(--background-secondary);
+	border-radius: var(--radius-s, 6px);
+}
+
+.wp-stat-label {
+	color: var(--text-muted);
+	font-size: var(--font-ui-small, 12px);
+}
+
+.wp-stat-value {
+	font-weight: 600;
+	font-variant-numeric: tabular-nums;
+}
+
+.wp-analytics-chart {
+	margin-bottom: 16px;
+}
+
+.wp-sparkline {
+	width: 100%;
+	height: auto;
+}
+
+.wp-sparkline-line {
+	stroke: var(--interactive-accent);
+	stroke-width: 1.5;
+}
+
+.wp-sparkline-fill {
+	fill: var(--interactive-accent);
+	opacity: 0.18;
+}
+
+.wp-sparkline-dot {
+	fill: var(--interactive-accent);
+}
+
+.wp-sparkline-overlay {
+	stroke: var(--text-accent, var(--interactive-accent));
+	stroke-width: 1.75;
+	stroke-dasharray: 0;
+	opacity: 0.85;
+}
+
+.wp-sparkline-overlay--avg {
+	stroke: var(--text-normal);
+	opacity: 0.75;
+}
+
+.wp-adherence-section {
+	margin-bottom: 18px;
+	padding-bottom: 12px;
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.wp-adherence-section h4 {
+	margin: 0;
+}
+
+.wp-adherence-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	flex-wrap: wrap;
+	margin-bottom: 8px;
+}
+
+.wp-adherence-toggle {
+	display: inline-flex;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 4px;
+	overflow: hidden;
+}
+
+.wp-adherence-toggle-btn {
+	background: transparent;
+	border: none;
+	padding: 3px 10px;
+	font-size: var(--font-ui-small, 11px);
+	color: var(--text-muted);
+	cursor: pointer;
+	box-shadow: none;
+}
+
+.wp-adherence-toggle-btn:hover {
+	background: var(--background-modifier-hover);
+}
+
+.wp-adherence-toggle-btn.is-active {
+	background: var(--interactive-accent);
+	color: var(--text-on-accent);
+}
+
+.wp-adherence-summary {
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.wp-adherence-hint {
+	margin-top: 6px;
+	margin-bottom: 6px;
+}
+
+.wp-adherence-calendars {
+	display: flex;
+	flex-direction: column;
+	gap: 14px;
+	margin-top: 10px;
+}
+
+.wp-adherence-month-title {
+	margin: 0 0 6px 0;
+	font-size: var(--font-ui-small, 12px);
+	color: var(--text-muted);
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+}
+
+.wp-adherence-grid {
+	display: grid;
+	grid-template-columns: repeat(7, minmax(0, 1fr));
+	gap: 3px;
+}
+
+.wp-adherence-weekday {
+	font-size: 10px;
+	color: var(--text-faint);
+	text-align: center;
+	padding-bottom: 2px;
+	font-weight: 600;
+	letter-spacing: 0.04em;
+}
+
+.wp-adherence-day {
+	aspect-ratio: 1 / 1;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 10px;
+	font-variant-numeric: tabular-nums;
+	border-radius: 3px;
+	background: var(--background-secondary);
+	color: var(--text-faint);
+	user-select: none;
+}
+
+.wp-adherence-day--completed {
+	background: var(--color-green, #4caf50);
+	color: var(--text-on-accent, #fff);
+}
+
+.wp-adherence-day--missed {
+	background: var(--color-red, #d04545);
+	color: var(--text-on-accent, #fff);
+}
+
+.wp-adherence-day--rest {
+	background: var(--background-modifier-border);
+	color: var(--text-faint);
+}
+
+.wp-adherence-day--pending,
+.wp-adherence-day--future {
+	background: transparent;
+	border: 1px dashed var(--background-modifier-border);
+	color: var(--text-faint);
+}
+
+.wp-adherence-day--before {
+	background: transparent;
+	color: var(--text-faint);
+	opacity: 0.4;
+}
+
+.wp-adherence-day--outside {
+	visibility: hidden;
+}
+
+.wp-adherence-day.is-today {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: -1px;
+}
+
+.wp-adherence-legend {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 10px;
+	margin-top: 10px;
+	font-size: var(--font-ui-small, 11px);
+	color: var(--text-muted);
+}
+
+.wp-adherence-legend-item {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+}
+
+.wp-adherence-legend-item .wp-adherence-day {
+	width: 12px;
+	height: 12px;
+	min-width: 12px;
+	aspect-ratio: auto;
+	font-size: 0;
+}
+
+.wp-adherence-year-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+	gap: 12px;
+	margin-top: 10px;
+}
+
+.wp-adherence-year-month {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	padding: 6px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 4px;
+	background: var(--background-primary-alt, var(--background-primary));
+}
+
+.wp-adherence-year-month-label {
+	font-size: 10px;
+	font-weight: 600;
+	color: var(--text-muted);
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	text-align: center;
+}
+
+.wp-adherence-year-days {
+	display: grid;
+	grid-template-columns: repeat(7, minmax(0, 1fr));
+	gap: 2px;
+}
+
+.wp-adherence-mini-day {
+	aspect-ratio: 1 / 1;
+	border-radius: 2px;
+	background: var(--background-secondary);
+	min-height: 6px;
+}
+
+.wp-adherence-mini-day--completed {
+	background: var(--color-green, #4caf50);
+}
+
+.wp-adherence-mini-day--missed {
+	background: var(--color-red, #d04545);
+}
+
+.wp-adherence-mini-day--rest {
+	background: var(--background-modifier-border);
+}
+
+.wp-adherence-mini-day--pending,
+.wp-adherence-mini-day--future {
+	background: transparent;
+	border: 1px dashed var(--background-modifier-border);
+}
+
+.wp-adherence-mini-day--before {
+	background: transparent;
+	opacity: 0.35;
+}
+
+.wp-adherence-mini-day--outside {
+	visibility: hidden;
+}
+
+.wp-adherence-mini-day.is-today {
+	outline: 1.5px solid var(--interactive-accent);
+	outline-offset: -0.5px;
+}
+
+.wp-bodyweight-section {
+	margin-bottom: 18px;
+	padding-bottom: 12px;
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.wp-bodyweight-section h4 {
+	margin-top: 0;
+}
+
+.wp-bw-summary {
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.wp-goal-section {
+	margin-bottom: 18px;
+	padding-bottom: 12px;
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.wp-goal-header {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	flex-wrap: wrap;
+	margin-bottom: 4px;
+}
+
+.wp-goal-header h4 {
+	margin: 0;
+}
+
+.wp-goal-badge {
+	display: inline-flex;
+	align-items: center;
+	padding: 2px 8px;
+	border-radius: 999px;
+	background: var(--interactive-accent);
+	color: var(--text-on-accent);
+	font-size: var(--font-ui-smaller, 11px);
+	font-weight: 600;
+	letter-spacing: 0.02em;
+}
+
+.wp-goal-summary {
+	font-size: var(--font-ui-small, 12px);
+	color: var(--text-muted);
+	margin-bottom: 10px;
+}
+
+.wp-goal-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+	gap: 10px;
+}
+
+.wp-goal-card {
+	padding: 10px 12px;
+	background: var(--background-secondary);
+	border-radius: var(--radius-s, 6px);
+}
+
+.wp-goal-card h5 {
+	margin: 0 0 4px;
+	font-size: var(--font-ui-small, 12px);
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	color: var(--text-muted);
+}
+
+.wp-goal-card-body {
+	font-size: var(--font-ui-small, 12px);
+	color: var(--text-normal);
+	line-height: 1.4;
+}
+
+.wp-goal-card-meta {
+	margin-top: 6px;
+	font-size: var(--font-ui-smaller, 11px);
+	color: var(--text-muted);
+}
+
+.wp-goal-card-meta--hint {
+	font-style: italic;
+}
+
+.wp-goal-note {
+	margin-top: 8px;
+	font-size: var(--font-ui-smaller, 11px);
+	color: var(--text-faint);
+	font-style: italic;
+}
+
+.wp-fitness-goal-preview {
+	margin: -4px 0 12px;
+	padding: 0 16px 0 16px;
+}
+
+.wp-fitness-goal-summary {
+	font-size: var(--font-ui-small, 12px);
+	color: var(--text-muted);
+	font-style: italic;
+}
+
+.wp-recommend-section {
+	margin-top: 12px;
+	padding: 10px 12px;
+	background: var(--background-secondary);
+	border-radius: var(--radius-s, 6px);
+	border-left: 3px solid var(--interactive-accent);
+}
+
+.wp-recommend-section h5 {
+	margin: 0 0 4px;
+	font-size: var(--font-ui-small, 12px);
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	color: var(--text-muted);
+}
+
+.wp-recommend-intro {
+	font-size: var(--font-ui-small, 12px);
+	color: var(--text-muted);
+	margin-bottom: 6px;
+}
+
+.wp-recommend-summary {
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 6px;
+}
+
+.wp-recommend-note {
+	margin-top: 6px;
+	font-size: var(--font-ui-smaller, 11px);
+	color: var(--text-faint);
+	font-style: italic;
+}
+
+.wp-recommend-hint {
+	margin-top: 8px;
+}
+
+.wp-weight-source {
+	font-size: var(--font-ui-smaller, 11px);
+	color: var(--text-faint);
+	margin-bottom: 6px;
+}
+
+.wp-recommend-source {
+	font-size: var(--font-ui-smaller, 11px);
+	color: var(--text-faint);
+	margin-bottom: 6px;
+}
+
+.wp-recommend-block {
+	margin-top: 12px;
+	padding: 10px 12px;
+	background: var(--background-secondary);
+	border-radius: var(--radius-s, 6px);
+}
+
+.wp-recommend-actions {
+	display: flex;
+	gap: 8px;
+	flex-wrap: wrap;
+	margin-top: 8px;
+}
+
+.wp-recommend-status {
+	font-size: var(--font-ui-small, 12px);
+	color: var(--text-normal);
+}
+
+.wp-recommend-empty {
+	color: var(--text-muted);
+	font-style: italic;
+}
+
+.wp-recommend-list {
+	list-style: disc;
+	padding-left: 20px;
+	margin: 6px 0 4px;
+}
+
+.wp-recommend-list li {
+	margin: 2px 0;
+}
+
+.wp-recommend-disclaimer {
+	color: var(--text-faint);
+	font-style: italic;
+	font-size: var(--font-ui-smaller, 11px);
+}
+
+.wp-chart-legend {
+	display: flex;
+	gap: 12px;
+	margin-top: 4px;
+	font-size: var(--font-ui-small, 12px);
+	color: var(--text-muted);
+}
+
+.wp-legend-item {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+}
+
+.wp-legend-item::before {
+	content: "";
+	display: inline-block;
+	width: 16px;
+	height: 2px;
+	background: var(--interactive-accent);
+}
+
+.wp-legend-avg::before {
+	background: var(--text-normal);
+	opacity: 0.75;
+}
+
+.wp-analytics-history-list {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.wp-analytics-history-list li {
+	padding: 6px 8px;
+	background: var(--background-secondary);
+	border-radius: var(--radius-s, 4px);
+	font-size: var(--font-ui-small, 12px);
+}
+
+.wp-history-date {
+	font-weight: 500;
+}
+
+/* --- Meals block --------------------------------------------------------- */
+
+.wp-meals {
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-m, 8px);
+	padding: 12px 14px;
+	background: var(--background-secondary);
+	/* See `.wp-workout` for why the gap lives on the card itself. */
+	margin: 2px 0;
+}
+
+.wp-meals-header {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 12px;
+	margin-bottom: 10px;
+	padding-bottom: 8px;
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.wp-meals-title {
+	font-weight: 600;
+	font-size: var(--font-ui-medium, 14px);
+}
+
+.wp-meals-date {
+	color: var(--text-muted);
+	font-size: var(--font-ui-small, 12px);
+}
+
+.wp-meals-goals {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 10px;
+	margin-bottom: 12px;
+}
+
+@media (min-width: 720px) {
+	.wp-meals-goals {
+		grid-template-columns: repeat(4, minmax(0, 1fr));
+	}
+}
+
+.wp-macro {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	padding: 8px 10px;
+	background: var(--background-primary);
+	border-radius: var(--radius-s, 4px);
+}
+
+.wp-macro-head {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	flex-wrap: wrap;
+	gap: 2px 6px;
+	font-size: var(--font-ui-small, 12px);
+}
+
+.wp-macro-label {
+	color: var(--text-muted);
+}
+
+.wp-macro-value {
+	font-weight: 500;
+	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
+}
+
+.wp-macro-bar {
+	width: 100%;
+	height: 6px;
+	background: var(--background-modifier-border);
+	border-radius: 999px;
+	overflow: hidden;
+}
+
+.wp-macro-bar-fill {
+	height: 100%;
+	background: var(--interactive-accent);
+	transition: width 120ms ease-out;
+}
+
+.wp-macro--calories .wp-macro-bar-fill { background: var(--color-orange, var(--interactive-accent)); }
+.wp-macro--protein .wp-macro-bar-fill { background: var(--color-red, var(--interactive-accent)); }
+.wp-macro--carbs .wp-macro-bar-fill { background: var(--color-yellow, var(--interactive-accent)); }
+.wp-macro--fats .wp-macro-bar-fill { background: var(--color-purple, var(--interactive-accent)); }
+
+.wp-macro-bar-fill--over {
+	background: var(--text-error, #c0392b) !important;
+}
+
+.wp-macro-remaining,
+.wp-macro-over {
+	font-size: var(--font-ui-smaller, 11px);
+	color: var(--text-muted);
+}
+
+.wp-macro-over {
+	color: var(--text-error, #c0392b);
+}
+
+.wp-meals-entries {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.wp-meal-row {
+	display: grid;
+	grid-template-columns: auto minmax(0, 1.3fr) minmax(0, 1fr) auto auto;
+	align-items: center;
+	gap: 10px;
+	padding: 6px 8px;
+	background: var(--background-primary);
+	border-radius: var(--radius-s, 4px);
+}
+
+.wp-meal-row--missing {
+	background: var(--background-modifier-error-hover, var(--background-secondary));
+}
+
+.wp-meal-name {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-weight: 500;
+}
+
+.wp-meal-link {
+	color: var(--text-normal);
+	text-decoration: none;
+}
+
+.wp-meal-link:hover {
+	color: var(--text-accent);
+	text-decoration: underline;
+}
+
+.wp-meal-type {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 18px;
+	height: 18px;
+	flex-shrink: 0;
+	color: var(--text-muted);
+}
+
+.wp-meal-type .svg-icon {
+	width: 16px;
+	height: 16px;
+}
+
+.wp-meal-type--meal { color: var(--color-orange, #d99c4a); }
+.wp-meal-type--snack { color: var(--color-yellow, #c9b458); }
+.wp-meal-type--drink { color: var(--color-blue, #5b8cd6); }
+
+.wp-meal-missing-icon {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 16px;
+	height: 16px;
+	border-radius: 999px;
+	background: var(--text-error, #c0392b);
+	color: var(--text-on-accent, white);
+	font-size: 10px;
+	font-weight: 700;
+}
+
+.wp-meal-qty {
+	width: 44px;
+	padding: 2px 4px;
+	background: var(--background-secondary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s, 4px);
+	color: var(--text-normal);
+	font-variant-numeric: tabular-nums;
+	text-align: center;
+	font-size: var(--font-ui-small, 12px);
+}
+
+.wp-meal-qty::-webkit-inner-spin-button,
+.wp-meal-qty::-webkit-outer-spin-button {
+	-webkit-appearance: none;
+	margin: 0;
+}
+
+.wp-meal-macros {
+	font-size: var(--font-ui-small, 12px);
+	color: var(--text-muted);
+	font-variant-numeric: tabular-nums;
+	text-align: right;
+	min-width: 0;
+}
+
+.wp-meal-remove,
+.wp-meal-fav {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 24px;
+	height: 24px;
+	padding: 0;
+	background: transparent;
+	border: none;
+	color: var(--text-muted);
+	border-radius: var(--radius-s, 4px);
+	cursor: pointer;
+}
+
+.wp-meal-remove:hover,
+.wp-meal-fav:hover {
+	background: var(--background-modifier-hover);
+	color: var(--text-normal);
+}
+
+.wp-meal-fav:hover {
+	color: var(--color-yellow, #c9b458);
+}
+
+/* Filled star = entry already saved as a favorite. Lucide's `star` icon
+ * is an outlined polygon, so we paint the fill directly via CSS. */
+.wp-meal-fav--active {
+	color: var(--color-yellow, #c9b458);
+}
+
+.wp-meal-fav--active .svg-icon {
+	fill: currentColor;
+}
+
+.wp-meal-row--missing .wp-meal-fav {
+	visibility: hidden;
+}
+
+.wp-meals-empty {
+	padding: 8px 0;
+	color: var(--text-muted);
+}
+
+.wp-meals-actions {
+	margin-top: 10px;
+	display: flex;
+	gap: 6px;
+}
+
+@media (max-width: 480px) {
+	.wp-meal-row {
+		grid-template-columns: auto minmax(0, 1fr) auto auto;
+		gap: 6px 10px;
+	}
+
+	.wp-meal-macros {
+		display: none;
+	}
+}
+
+.wp-folders-input {
+	width: 100%;
+	min-width: 240px;
+	font-family: var(--font-monospace);
+	font-size: var(--font-ui-small, 12px);
+	resize: vertical;
+}
+
+/* --- Settings: nutrition goals grid -------------------------------------- */
+
+.wp-goals-grid {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 8px 12px;
+	margin: 0 0 18px 0;
+	padding: 0 0 12px 0;
+}
+
+@media (min-width: 720px) {
+	.wp-goals-grid {
+		grid-template-columns: repeat(4, minmax(0, 1fr));
+	}
+}
+
+.wp-goal-cell {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.wp-goal-cell label {
+	font-size: var(--font-ui-small, 12px);
+	color: var(--text-muted);
+}
+
+.wp-goal-input {
+	padding: 4px 8px;
+	background: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s, 4px);
+	color: var(--text-normal);
+	font-variant-numeric: tabular-nums;
+}
+
+.wp-goal-input::-webkit-inner-spin-button,
+.wp-goal-input::-webkit-outer-spin-button {
+	-webkit-appearance: none;
+	margin: 0;
+}
+
+/* --- Analytics: nutrition section ---------------------------------------- */
+
+.wp-nutrition-section {
+	margin-bottom: 18px;
+	padding-bottom: 12px;
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.wp-nutrition-section h4 {
+	margin-top: 0;
+}
+
+.wp-nutrition-summary {
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.wp-sparkline-overlay--goal {
+	stroke: var(--text-muted);
+	stroke-dasharray: 4 3;
+	opacity: 0.7;
+}
+
+.wp-legend-goal::before {
+	background: var(--text-muted);
+	border-top: 1px dashed var(--text-muted);
+	background: transparent;
+	height: 0;
+	border-top: 2px dashed var(--text-muted);
+	width: 16px;
+}
+
+/* --- Macro: fiber color -------------------------------------------------- */
+
+.wp-macro--fiber .wp-macro-bar-fill { background: var(--color-green, var(--interactive-accent)); }
+
+/* --- Workout: superset grouping ------------------------------------------ */
+
+.wp-superset {
+	border: 1px dashed var(--interactive-accent);
+	border-radius: var(--radius-m, 8px);
+	padding: 8px 10px 10px;
+	margin: 6px 0;
+	background: color-mix(in srgb, var(--interactive-accent) 5%, transparent);
+}
+
+.wp-superset-heading {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	margin: 0 0 6px 0;
+	color: var(--interactive-accent);
+	font-size: var(--font-ui-small, 12px);
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+}
+
+.wp-superset-badge {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 16px;
+	height: 16px;
+	color: var(--interactive-accent);
+}
+
+.wp-superset-badge .svg-icon {
+	width: 14px;
+	height: 14px;
+}
+
+.wp-exercise--superset {
+	background: transparent;
+}
+
+/* --- Workout: PR badges -------------------------------------------------- */
+
+.wp-pr-badges {
+	display: inline-flex;
+	align-items: center;
+	gap: 2px;
+	margin-left: 4px;
+}
+
+/* When a set hasn't earned any PR badges (the common case) the container
+ * is empty. Remove it from the grid entirely so it doesn't contribute
+ * line-height-derived height to the row — otherwise mobile shows a
+ * visible blank strip on the trailing edge of every set. */
+.wp-pr-badges:empty {
+	display: none;
+}
+
+.wp-pr-badge {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 18px;
+	height: 18px;
+	border-radius: 999px;
+	color: var(--text-on-accent, white);
+	background: var(--interactive-accent);
+}
+
+.wp-pr-badge .svg-icon {
+	width: 12px;
+	height: 12px;
+}
+
+.wp-pr-badge--weight { background: var(--color-orange, #d99c4a); }
+.wp-pr-badge--e1rm { background: var(--color-purple, #8e6fc8); }
+.wp-pr-badge--reps { background: var(--color-green, #5fa463); }
+
+/* --- Workout: body measurements ------------------------------------------ */
+
+.wp-measurements {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	margin-top: 6px;
+}
+
+.wp-measurements-details {
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s, 4px);
+	padding: 4px 8px;
+	background: var(--background-primary);
+}
+
+.wp-measurements-summary {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	cursor: pointer;
+	font-size: var(--font-ui-small, 12px);
+	color: var(--text-muted);
+	list-style: none;
+}
+
+.wp-measurements-summary::-webkit-details-marker {
+	display: none;
+}
+
+.wp-measurements-icon {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 14px;
+	height: 14px;
+	color: var(--text-muted);
+}
+
+.wp-measurements-icon .svg-icon {
+	width: 12px;
+	height: 12px;
+}
+
+.wp-measurements-title {
+	font-weight: 600;
+	color: var(--text-normal);
+}
+
+.wp-measurements-inline {
+	color: var(--text-muted);
+	font-variant-numeric: tabular-nums;
+}
+
+.wp-measurements-inline--empty {
+	font-style: italic;
+	opacity: 0.7;
+}
+
+.wp-measurements .wp-measurements-grid {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 6px 12px;
+	margin-top: 8px;
+}
+
+@media (min-width: 600px) {
+	.wp-measurements .wp-measurements-grid {
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+	}
+}
+
+.wp-measurement-row {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	font-size: var(--font-ui-small, 12px);
+}
+
+.wp-measurement-row .wp-measurement-label {
+	color: var(--text-muted);
+	min-width: 56px;
+}
+
+.wp-measurement-input {
+	flex: 1;
+	min-width: 0;
+	padding: 2px 6px;
+	background: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s, 4px);
+	color: var(--text-normal);
+	font-variant-numeric: tabular-nums;
+	text-align: right;
+}
+
+.wp-measurement-input::-webkit-inner-spin-button,
+.wp-measurement-input::-webkit-outer-spin-button {
+	-webkit-appearance: none;
+	margin: 0;
+}
+
+.wp-measurement-row .wp-measurement-unit {
+	color: var(--text-muted);
+	min-width: 18px;
+}
+
+/* --- Workout: cardio distance/finish ------------------------------------- */
+
+.wp-cardio-distance {
+	width: 100%;
+	min-width: 0;
+}
+
+.wp-cardio-distance-unit {
+	padding: 2px 4px;
+	background: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s, 4px);
+	color: var(--text-normal);
+	font-size: var(--font-ui-small, 12px);
+}
+
+/* --- Workout: duration in header ----------------------------------------- */
+
+.wp-duration {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	color: var(--text-muted);
+	font-size: var(--font-ui-small, 12px);
+}
+
+.wp-duration-icon {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 12px;
+	height: 12px;
+}
+
+.wp-duration-icon .svg-icon {
+	width: 12px;
+	height: 12px;
+}
+
+/* --- Meals: freeform entry styling --------------------------------------- */
+
+.wp-meal-row--freeform {
+	background: color-mix(in srgb, var(--interactive-accent) 4%, var(--background-primary));
+}
+
+.wp-meal-row--freeform .wp-meal-name {
+	font-style: italic;
+}
+
+/* --- Water tracker (standalone block + embedded in meals) ---------------
+ * Single-row layout: [icon Water] [current] [bar──────] [/ goal] [-] [+]
+ * The +/- controls wrap to a second line on narrow viewports because the
+ * bar's `min-width` keeps the row from squashing further.
+ */
+
+.wp-water {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 8px;
+	padding: 6px 10px;
+	background: var(--background-primary);
+	border-radius: var(--radius-s, 4px);
+}
+
+.wp-water--standalone {
+	/* See `.wp-workout` for why the gap lives on the card itself. */
+	margin: 2px 0;
+	background: var(--background-secondary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-m, 8px);
+}
+
+/* Embedded inside the meals grid: span the row when fiber isn't tracked,
+ * span 3 of 4 cols when fiber is tracked. */
+.wp-water--embedded {
+	grid-column: 1 / -1;
+}
+
+/* On phones (2-col grid) fiber would otherwise sit alone in the bottom row
+ * with an empty cell next to it. Span both columns so the stack is tidy. */
+.wp-meals-goals--with-fiber .wp-macro--fiber {
+	grid-column: 1 / -1;
+}
+
+@media (min-width: 720px) {
+	.wp-meals-goals--with-fiber .wp-macro--fiber {
+		grid-column: auto;
+	}
+
+	.wp-meals-goals--with-fiber .wp-water--embedded {
+		grid-column: span 3;
+	}
+}
+
+.wp-water-label {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	color: var(--text-muted);
+	font-size: var(--font-ui-small, 12px);
+	white-space: nowrap;
+}
+
+.wp-water-icon {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 14px;
+	height: 14px;
+	color: var(--color-blue, #5b8cd6);
+}
+
+.wp-water-icon .svg-icon {
+	width: 14px;
+	height: 14px;
+}
+
+.wp-water-current,
+.wp-water-goal {
+	font-variant-numeric: tabular-nums;
+	font-size: var(--font-ui-small, 12px);
+	white-space: nowrap;
+}
+
+.wp-water-current {
+	font-weight: 600;
+	color: var(--text-normal);
+}
+
+.wp-water-goal {
+	color: var(--text-muted);
+}
+
+.wp-water-goal--done {
+	color: var(--color-green, #5fa463);
+	font-weight: 600;
+}
+
+.wp-water-bar {
+	flex: 1;
+	min-width: 100px;
+	height: 6px;
+	background: var(--background-modifier-border);
+	border-radius: 999px;
+	overflow: hidden;
+}
+
+.wp-water-bar-fill {
+	height: 100%;
+	background: var(--color-blue, #5b8cd6);
+	transition: width 120ms ease-out;
+}
+
+.wp-water-bar-fill--done {
+	background: var(--color-green, #5fa463);
+}
+
+.wp-water-controls {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	margin-left: auto;
+}
+
+.wp-water-step {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 22px;
+	height: 22px;
+	padding: 0;
+	background: var(--background-secondary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s, 4px);
+	color: var(--text-normal);
+	cursor: pointer;
+}
+
+.wp-water--standalone .wp-water-step {
+	background: var(--background-primary);
+}
+
+.wp-water-step:hover {
+	background: var(--background-modifier-hover);
+}
+
+.wp-water-step .svg-icon {
+	width: 13px;
+	height: 13px;
+}
+
+@media (max-width: 480px) {
+	.wp-water-bar {
+		flex-basis: 100%;
+		order: 3;
+		min-width: 0;
+	}
+
+	.wp-water-controls {
+		order: 4;
+		flex-basis: 100%;
+		justify-content: flex-end;
+		margin-left: 0;
+	}
+}
+
+/* --- Analytics: workout duration ----------------------------------------- */
+
+.wp-duration-section,
+.wp-measurements-section,
+.wp-hydration-section,
+.wp-records-section {
+	margin-bottom: 18px;
+	padding-bottom: 12px;
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.wp-duration-section h4,
+.wp-measurements-section h4,
+.wp-hydration-section h4,
+.wp-records-section h4 {
+	margin-top: 0;
+}
+
+/* --- Analytics: body measurement cards ----------------------------------- */
+
+.wp-measurements-section .wp-measurements-grid {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 8px;
+}
+
+@media (min-width: 720px) {
+	.wp-measurements-section .wp-measurements-grid {
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+	}
+}
+
+.wp-measurement-card {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	padding: 8px 10px;
+	background: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s, 4px);
+}
+
+.wp-measurement-card .wp-measurement-label {
+	font-size: var(--font-ui-small, 12px);
+	color: var(--text-muted);
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+}
+
+.wp-measurement-head {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 8px;
+}
+
+.wp-measurement-card .wp-measurement-value {
+	font-size: var(--font-ui-medium, 14px);
+	font-weight: 600;
+	font-variant-numeric: tabular-nums;
+}
+
+.wp-measurement-date {
+	font-size: var(--font-ui-smaller, 11px);
+	color: var(--text-muted);
+}
+
+.wp-measurement-delta {
+	font-size: var(--font-ui-smaller, 11px);
+	color: var(--text-muted);
+}
+
+.wp-measurement-delta--up { color: var(--color-orange, #d99c4a); }
+.wp-measurement-delta--down { color: var(--color-green, #5fa463); }
+
+.wp-measurement-spark {
+	margin-top: 4px;
+}
+
+/* --- Analytics: PR records ----------------------------------------------- */
+
+.wp-records-recent,
+.wp-records-all {
+	margin-top: 10px;
+}
+
+.wp-records-recent h5,
+.wp-records-all h5 {
+	margin: 8px 0 6px 0;
+}
+
+.wp-records-list {
+	list-style: none;
+	padding: 0;
+	margin: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.wp-records-item {
+	display: grid;
+	grid-template-columns: auto minmax(0, 1.2fr) minmax(0, 0.8fr) auto auto;
+	align-items: center;
+	gap: 8px;
+	padding: 4px 8px;
+	background: var(--background-primary);
+	border-radius: var(--radius-s, 4px);
+	font-size: var(--font-ui-small, 12px);
+}
+
+.wp-records-star {
+	color: var(--color-yellow, #c9b458);
+}
+
+.wp-records-name {
+	font-weight: 600;
+}
+
+.wp-records-kind {
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller, 11px);
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+}
+
+.wp-records-value {
+	font-variant-numeric: tabular-nums;
+}
+
+.wp-records-date {
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller, 11px);
+}
+
+.wp-records-row {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	padding: 6px 8px;
+	background: var(--background-primary);
+	border-radius: var(--radius-s, 4px);
+}
+
+.wp-records-row .wp-records-name {
+	font-size: var(--font-ui-small, 12px);
+}
+
+.wp-records-badges {
+	display: inline-flex;
+	flex-wrap: wrap;
+	gap: 4px;
+}
+
+.wp-records-badge {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	padding: 2px 6px;
+	background: var(--background-secondary);
+	border-radius: 999px;
+	font-size: var(--font-ui-smaller, 11px);
+}
+
+.wp-records-badge-kind {
+	color: var(--text-muted);
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+}
+
+.wp-records-badge-value {
+	font-variant-numeric: tabular-nums;
+	font-weight: 600;
+}
+
+/* --- Analytics: cardio history pace -------------------------------------- */
+
+.wp-history-pace {
+	color: var(--text-accent);
+}
+
+@media (max-width: 480px) {
+	.wp-records-item {
+		grid-template-columns: auto minmax(0, 1fr);
+		gap: 4px 8px;
+	}
+
+	.wp-records-item .wp-records-kind,
+	.wp-records-item .wp-records-value,
+	.wp-records-item .wp-records-date {
+		grid-column: 2;
+	}
+}

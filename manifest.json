@@ -1,0 +1,10 @@
+{
+	"id": "obsidian-coach",
+	"name": "Coach",
+	"version": "1.0.0",
+	"minAppVersion": "1.12.0",
+	"description": "An indepth fitness and workout tracking system for Obsidian.",
+	"author": "TheEkrizdis",
+	"authorUrl": "",
+	"isDesktopOnly": false
+}
