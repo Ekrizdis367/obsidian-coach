@@ -415,7 +415,7 @@ Open **Settings → Coach → Weekly schedule** and pick a template for each day
 
 ```templater
 <%*
-const planner = app.plugins.plugins["obsidian-coach"];
+const planner = app.plugins.plugins["coach"];
 const block = planner?.api.getWorkoutForToday() ?? "";
 if (block) tR += block + "\n";
 %>
@@ -443,7 +443,7 @@ if (block) tR += block + "\n";
 # <% tp.date.now("dddd, MMMM D") %>
 
 <%*
-const coach = app.plugins.plugins["obsidian-coach"]?.api;
+const coach = app.plugins.plugins["coach"]?.api;
 const name = coach?.getTemplateNameForDate();
 %>
 ## <% name ? `Workout — ${name}` : "Rest day" %>
@@ -459,7 +459,7 @@ The same template, but for a daily note that sits on tomorrow's date (e.g. you t
 
 ```templater
 <%*
-const coach = app.plugins.plugins["obsidian-coach"]?.api;
+const coach = app.plugins.plugins["coach"]?.api;
 tR += coach?.getWorkoutForDate(tp.file.title) ?? "";
 tR += "\n\n";
 tR += coach?.getMealLogForDate(tp.file.title) ?? "";
@@ -473,7 +473,7 @@ tR += coach?.getMealLogForDate(tp.file.title) ?? "";
 - **Local time zone**: weekday resolution uses `Date#getDay()`, so the schedule is keyed to your local time zone (not UTC). When you pass a `YYYY-MM-DD` string, the API parses it as a local date so you don't get off-by-one bugs across midnight.
 - **Renamed or deleted templates self-heal**: on plugin load, any weekday whose mapped template no longer exists is reset to "None". You won't get a stale mapping silently producing an empty block forever.
 - **No reload required after editing the schedule**: the API reads settings live, so changes you make in the settings tab take effect immediately for the next Templater run.
-- **Plugin must be enabled**: the `app.plugins.plugins["obsidian-coach"]` lookup returns `undefined` if the plugin is disabled — the optional chaining (`?.`) in the snippets above keeps your template from throwing in that case.
+- **Plugin must be enabled**: the `app.plugins.plugins["coach"]` lookup returns `undefined` if the plugin is disabled — the optional chaining (`?.`) in the snippets above keeps your template from throwing in that case.
 
 ## Body data and recommendations
 
@@ -591,7 +591,7 @@ npm run build    # type-check and produce a production main.js
 npm run lint     # run eslint
 ```
 
-To test locally, this folder lives at `<Vault>/.obsidian/plugins/obsidian-coach/`. After building, reload Obsidian and enable **Coach** under **Settings → Community plugins**.
+To test locally, this folder lives at `<Vault>/.obsidian/plugins/coach/`. After building, reload Obsidian and enable **Coach** under **Settings → Community plugins**.
 
 ## Release
 
