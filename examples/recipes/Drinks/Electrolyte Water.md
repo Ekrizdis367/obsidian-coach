@@ -10,7 +10,7 @@ fat: 0
 
 # Electrolyte Water
 
-A homemade hydration drink for long workouts or hot days. Most ingredients are pantry staples you wouldn't put on a grocery list, so they're tagged with `#IgnoreIngredient` to demonstrate Grocery Planning's skip feature.
+A homemade hydration drink for long workouts or hot days. Most ingredients are pantry staples you wouldn't put on a grocery list, so they're tagged with `#IgnoreIngredient` to demonstrate Pantry's skip feature.
 
 ## Ingredients
 - 16 oz water #IgnoreIngredient

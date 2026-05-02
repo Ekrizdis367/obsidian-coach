@@ -2,6 +2,16 @@
 
 An [Obsidian](https://obsidian.md) plugin that acts as a friendly fitness coach inside your vault: build workout routines, log sets, track body data, log meals, and watch your progress over time — all stored as plain markdown.
 
+## Screenshots
+
+Workout block with sets, rest timer, and last-session reference:
+
+![Coach workout block in Obsidian](assets/workouts.png)
+
+Meal log with macro goals, recipe picker, and water bar:
+
+![Coach meal tracking in Obsidian](assets/mealtracking.png)
+
 ## Features
 
 - **Workout templates** with exercises, target sets, reps, and weight, defined in plugin settings.
@@ -15,7 +25,7 @@ An [Obsidian](https://obsidian.md) plugin that acts as a friendly fitness coach 
 - **Fitness goal & focus**: pick a goal (general fitness, lose weight, get lean, build muscle, or improve endurance) and the analytics view shows a tailored training prescription (rep ranges, intensity), a cardio prescription with a target heart-rate zone in bpm, and goal-tuned calorie and macro recommendations.
 - **Cardio tracking** alongside strength: simple **minutes-only logs by default** for stationary bike, treadmill walk, elliptical, etc., or opt-in to **distance, pace, and finish-time fields** per entry to log "5 km in 28:00 → 5:36/km" for a run. The analytics view sums total distance, surfaces your farthest session with auto-computed pace, and lists pace and finish times in recent sessions.
 - **Meal log with nutrition goals**: a separate `meals` code block (works on rest days too) tracks daily intake against your calorie / protein / carbs / fats goals. Pull recipes from configured folders, or add **freeform one-off entries** ("Pad thai @ restaurant ~900 cal, 30P") via the **Add custom** button when you don't want to write a full recipe note.
-- **Optional fiber tracking**: opt-in 5th macro via **Settings → Coach → Nutrition → Track fiber**. When enabled, fiber appears in daily goals, the meal log progress bars, recipe frontmatter parsing (American or British spelling), and analytics / weekly reviews. Off by default to keep the UI uncluttered. Pairs nicely with the [Pantry / Grocery Planning](../obsidian-grocery-planning/) plugin for diabetic meal planning.
+- **Optional fiber tracking**: opt-in 5th macro via **Settings → Coach → Nutrition → Track fiber**. When enabled, fiber appears in daily goals, the meal log progress bars, recipe frontmatter parsing (American or British spelling), and analytics / weekly reviews. Off by default to keep the UI uncluttered. Pairs nicely with [Pantry](https://github.com/Ekrizdis367/obsidian-pantry) for diabetic meal planning.
 - **Built-in water tracker**: a hydration bar embedded right in the meal log. The water bar always has a goal (uses a sensible default — about 2.5 L — until you customize one), shows current intake on the left, the goal on the right, and quick-add buttons (`+250 ml`, `+500 ml`, `+750 ml` or `+8 oz` / `+16 oz` / `+24 oz`) below. Spans the full row when you're not tracking fiber, or sits next to the fiber macro when you are. A standalone `water` code block is also available via the `Insert water log` command for non-meal days. Units follow your selected weight unit (ml with kg, fl oz with lb).
 - **Weekly review note generator**: an `Insert weekly review` command builds a markdown summary of the past 7 days — sessions logged vs scheduled, adherence %, total volume, cardio minutes, average session length, recent PRs, average daily macros, water average, and body weight delta — for end-of-week reflection.
 - **Pre-populated exercise library** (~35 common lifts plus cardio) with the option to add or edit your own.
@@ -219,7 +229,7 @@ Favorites are stored in plugin data (not in your notes), so the same set is avai
 
 #### Optional fiber tracking
 
-Fiber is opt-in. Toggle **Settings → Coach → Nutrition → Track fiber** and a 5th green fiber bar appears in the meal log alongside the other macros, plus a fiber input under daily goals, a fiber line in the recommended-targets summary, and a fiber average in the analytics view and weekly review. Recipe and freeform entries can already include `fiber:` regardless of the toggle — the value is parsed and stored, just not displayed when the toggle is off. This pairs nicely with the [Pantry / Grocery Planning](../obsidian-grocery-planning/) plugin's diabetic-friendly recipe annotations.
+Fiber is opt-in. Toggle **Settings → Coach → Nutrition → Track fiber** and a 5th green fiber bar appears in the meal log alongside the other macros, plus a fiber input under daily goals, a fiber line in the recommended-targets summary, and a fiber average in the analytics view and weekly review. Recipe and freeform entries can already include `fiber:` regardless of the toggle — the value is parsed and stored, just not displayed when the toggle is off. This pairs nicely with [Pantry](https://github.com/Ekrizdis367/obsidian-pantry)'s diabetic-friendly recipe annotations.
 
 #### Embedded water tracker
 
@@ -324,18 +334,18 @@ type: drink
 ---
 ```
 
-## Pairs with Grocery Planning
+## Pairs with Pantry
 
-This plugin is designed to share recipe notes with [Grocery Planning](../obsidian-grocery-planning/) (sibling plugin in the same vault). One recipe note can power **both** plugins at the same time:
+This plugin is designed to share recipe notes with [Pantry](https://github.com/Ekrizdis367/obsidian-pantry) (recipes and grocery lists). One recipe note can power **both** plugins at the same time:
 
-- **Grocery Planning** reads its own selection flag (`groceryList: true` by default) and the ingredients section to build a consolidated weekly shopping list, with category grouping, multipliers, and check-off persistence.
+- **Pantry** reads its own selection flag (`groceryList: true` by default) and the ingredients section to build a consolidated weekly shopping list, with category grouping, multipliers, and check-off persistence.
 - **Coach** reads the same recipe's nutrition frontmatter and lets you log servings of it in a daily `meals` block, rolling them up into your calorie / protein / carb / fat goals and the analytics view.
 
 ### One frontmatter, both plugins
 
 The two plugins use slightly different conventions, but Coach accepts both so a single recipe note works for both:
 
-| Field | Grocery Planning | Coach |
+| Field | Pantry | Coach |
 | --- | --- | --- |
 | `calories` | total for the recipe as written | per serving (or total if `servings` is set — see below) |
 | `protein` | total | per serving |
@@ -346,7 +356,7 @@ The two plugins use slightly different conventions, but Coach accepts both so a 
 | `type: recipe` | opens the rich recipe view | ignored |
 | `image` | hero image in recipe view | ignored |
 
-So a recipe written in the Grocery Planning style — totals plus a `servings` field — will Just Work in Coach's meal log, and one serving on your meal log will use one fourth (etc.) of the totals.
+So a recipe written in the Pantry style — totals plus a `servings` field — will Just Work in Coach's meal log, and one serving on your meal log will use one fourth (etc.) of the totals.
 
 ### Recommended frontmatter for both
 
@@ -370,13 +380,13 @@ fat: 60
 ```
 
 With this single note:
-- Grocery Planning shows it in your weekly list (consolidated with other recipes), opens it in the recipe view, scales it with `multiplier`.
+- Pantry shows it in your weekly list (consolidated with other recipes), opens it in the recipe view, scales it with `multiplier`.
 - Coach sees `servings: 4` and `calories: 1800`, so logging "1 serving" of this recipe in a `meals` block adds 450 cal / 22P / 55C / 15F to your daily totals.
 
 ### Workflow
 
 A typical week looks like:
-1. Tag a few recipes for the week with `groceryList: true` → Grocery Planning generates the shopping list.
+1. Tag a few recipes for the week with `groceryList: true` → Pantry generates the shopping list.
 2. Run a Templater daily note that injects the day's workout block (see [Templater integration](#templater-integration) above) and an empty meals block.
 3. As you eat throughout the day, "Add meal" the recipes you actually cooked. Coach's analytics view will surface 30-day calorie averages and a goal-aware sparkline for your nutrition.
 
@@ -398,7 +408,7 @@ examples/recipes/
 Use them to:
 
 - **See it work end-to-end.** Drop them in, point **Recipe folders** at the parent folder, and you can immediately log meals, see icons, and watch the analytics view fill in.
-- **Templatize your own.** Each note uses the recommended shared frontmatter from [Pairs with Grocery Planning](#pairs-with-grocery-planning) — copy a recipe whose shape matches what you're writing and edit from there.
+- **Templatize your own.** Each note uses the recommended shared frontmatter from [Pairs with Pantry](#pairs-with-pantry) — copy a recipe whose shape matches what you're writing and edit from there.
 - **Stock the cookbook.** Keep them in your vault as actually-cookable recipes; macros are reasonable starting values you can tune.
 
 To install: copy any or all of those folders into your vault under whatever parent folder you like (e.g. `Cooking/`), then open **Settings → Coach → Recipe folders** and add that parent. See [`examples/recipes/README.md`](examples/recipes/README.md) for the full breakdown of what each recipe demonstrates.

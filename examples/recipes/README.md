@@ -4,7 +4,7 @@ A starter pack of 12 markdown recipe notes you can drop into your vault to:
 
 - See what `meals` blocks and the analytics view look like with real data.
 - Use as templates when writing your own recipes.
-- Verify both Coach *and* [Grocery Planning](../../../obsidian-grocery-planning/) (sibling plugin) parse the same frontmatter correctly.
+- Verify both Coach *and* [Pantry](https://github.com/Ekrizdis367/obsidian-pantry) parse the same frontmatter correctly.
 
 ## Install
 
@@ -19,7 +19,7 @@ Every sample uses the same shared format that works for both plugins:
 
 ```yaml
 ---
-type: recipe          # Grocery Planning opens this in its rich recipe view
+type: recipe          # Pantry opens this in its rich recipe view
 groceryList: false    # set to true to include in this week's grocery list
 servings: 4           # how many servings the recipe makes as written
 calories: 1800        # totals for the recipe (will be divided by `servings`)
@@ -29,7 +29,7 @@ fat: 48
 ---
 ```
 
-| Field | Read by Coach? | Read by Grocery Planning? |
+| Field | Read by Coach? | Read by Pantry? |
 | --- | --- | --- |
 | `type: recipe` | no | yes — opens the recipe view |
 | `groceryList` | no | yes — selection flag |
