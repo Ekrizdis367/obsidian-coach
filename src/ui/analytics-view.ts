@@ -80,7 +80,7 @@ export class AnalyticsView extends ItemView {
 		return "bar-chart-2";
 	}
 
-	async onOpen(): Promise<void> {
+	onOpen(): Promise<void> {
 		this.scheduleRender();
 		this.registerEvent(
 			this.app.workspace.on("file-open", () => this.scheduleRender()),
@@ -88,13 +88,15 @@ export class AnalyticsView extends ItemView {
 		this.registerEvent(
 			this.app.metadataCache.on("changed", () => this.scheduleRender()),
 		);
+		return Promise.resolve();
 	}
 
-	async onClose(): Promise<void> {
+	onClose(): Promise<void> {
 		if (this.rebuildTimer !== null) {
 			window.clearTimeout(this.rebuildTimer);
 			this.rebuildTimer = null;
 		}
+		return Promise.resolve();
 	}
 
 	scheduleRender(): void {
