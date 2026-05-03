@@ -69,7 +69,7 @@ export class RestTimerController {
 		const root = document.body.createDiv({ cls: "wp-rest-timer" });
 		const inner = root.createDiv({ cls: "wp-rest-timer-inner" });
 
-		this.labelEl = inner.createDiv({ cls: "wp-rest-timer-label", text: "Rest" });
+		this.labelEl = inner.createDiv({ cls: "wp-rest-timer-label", text: "Break" });
 		this.timeEl = inner.createDiv({ cls: "wp-rest-timer-time", text: "0:00" });
 
 		const controls = inner.createDiv({ cls: "wp-rest-timer-controls" });
@@ -82,7 +82,7 @@ export class RestTimerController {
 
 		const close = controls.createEl("button", { cls: "wp-rest-timer-btn wp-rest-timer-btn--close" });
 		setIcon(close, "x");
-		close.setAttr("aria-label", "Stop rest timer");
+		close.setAttr("aria-label", "Stop between-set timer");
 		close.addEventListener("click", () => this.cancel());
 
 		this.root = root;
@@ -112,7 +112,7 @@ export class RestTimerController {
 		if (!this.state || !this.timeEl || !this.labelEl) return;
 		const elapsed = (Date.now() - this.state.startedAt) / 1000;
 		const remaining = this.state.durationSec - elapsed;
-		this.labelEl.setText(this.state.label ? `Rest · ${this.state.label}` : "Rest");
+		this.labelEl.setText(this.state.label ? `Break · ${this.state.label}` : "Break");
 		this.root?.toggleClass("is-complete", remaining <= 0);
 
 		if (remaining <= 0) {
@@ -127,7 +127,7 @@ export class RestTimerController {
 	}
 
 	private notifyComplete(): void {
-		new Notice("Rest complete");
+		new Notice("Between-set timer finished");
 		if (this.opts.getPlaySound()) this.beep();
 	}
 

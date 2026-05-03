@@ -225,7 +225,7 @@ export class AnalyticsView extends ItemView {
 		const legend = wrap.createDiv({ cls: "wp-adherence-legend" });
 		legendSwatch(legend, "wp-adherence-day--completed", "Completed");
 		if (hasSchedule) legendSwatch(legend, "wp-adherence-day--missed", "Missed");
-		legendSwatch(legend, "wp-adherence-day--rest", "Rest day");
+		legendSwatch(legend, "wp-adherence-day--rest", "Off day");
 		legendSwatch(legend, "wp-adherence-day--pending", "Pending");
 	}
 

@@ -429,7 +429,7 @@ function renderExercise(
 		}
 
 		if (showRestButton) {
-			const restBtn = actions.createEl("button", { cls: "wp-btn", text: `Rest (${deps.getDefaultRestSec()}s)` });
+			const restBtn = actions.createEl("button", { cls: "wp-btn", text: `Break (${deps.getDefaultRestSec()}s)` });
 			restBtn.addEventListener("click", () => {
 				deps.restTimer.start(deps.getDefaultRestSec(), exercise.name);
 			});

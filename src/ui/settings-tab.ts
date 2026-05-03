@@ -110,7 +110,7 @@ export class WorkoutSettingsTab extends PluginSettingTab {
 		new Setting(parent).setName("Body data").setHeading();
 		const desc = parent.createEl("p", { cls: "setting-item-description" });
 		desc.setText(
-			"Optional. Used by the analytics view to compute BMI and recommended daily calories and macros. Stored in your vault only — nothing is sent anywhere. Not medical advice; consult a professional for anything health-related.",
+			"Optional. Used by the analytics view to compute body mass index and recommended daily calories and macros. Stored in your vault only — nothing is sent anywhere. Not medical advice; consult a professional for anything health-related.",
 		);
 
 		const heightUnit = isHeightUnitFor(settings.weightUnit);
@@ -118,7 +118,7 @@ export class WorkoutSettingsTab extends PluginSettingTab {
 
 		new Setting(parent)
 			.setName(`Height (${heightUnit})`)
-			.setDesc("Used to compute BMI and your basal metabolic rate.")
+			.setDesc("Used to compute body mass index and your basal metabolic rate.")
 			.addText((t) => {
 				t.inputEl.type = "number";
 				t.inputEl.min = "0";
@@ -165,7 +165,7 @@ export class WorkoutSettingsTab extends PluginSettingTab {
 		new Setting(parent)
 			.setName("Gender")
 			.setDesc(
-				"Used in the BMR formula, which only has male and female variants. Pick whichever fits you best, or choose non-binary or prefer not to say to use the average of the two.",
+				"Used in the standard sex-specific basal metabolic rate estimate. Pick whichever fits you best, or choose non-binary or prefer not to say to use the average of the two.",
 			)
 			.addDropdown((dd) => {
 				for (const value of GENDER_OPTIONS) dd.addOption(value, GENDER_LABELS[value]);
@@ -178,7 +178,7 @@ export class WorkoutSettingsTab extends PluginSettingTab {
 
 		new Setting(parent)
 			.setName("Activity level")
-			.setDesc("Used to estimate your total daily energy expenditure (TDEE).")
+			.setDesc("Used to estimate your total daily energy expenditure.")
 			.addDropdown((dd) => {
 				for (const value of ACTIVITY_LEVEL_OPTIONS) dd.addOption(value, ACTIVITY_LEVEL_LABELS[value]);
 				dd.setValue(settings.bodyData.activityLevel);
@@ -191,7 +191,7 @@ export class WorkoutSettingsTab extends PluginSettingTab {
 		new Setting(parent)
 			.setName(`Current weight (${settings.weightUnit})`)
 			.setDesc(
-				"Optional fallback used for BMI and nutrition recommendations when you haven't logged a body weight in a workout yet. Logged weights from workout blocks always take precedence, so once you start logging this value is ignored.",
+				"Optional fallback used for body mass index and nutrition recommendations when you haven't logged a body weight in a workout yet. Logged weights from workout blocks always take precedence, so once you start logging this value is ignored.",
 			)
 			.addText((t) => {
 				t.inputEl.type = "number";
@@ -250,7 +250,7 @@ export class WorkoutSettingsTab extends PluginSettingTab {
 		new Setting(parent).setName("Weekly schedule").setHeading();
 		const desc = parent.createEl("p", { cls: "setting-item-description" });
 		desc.setText(
-			"Map each weekday to one of your templates. Rest days can stay set to none. Used by the plugin API so a templater-powered daily note can inject the right workout automatically.",
+			"Map each weekday to one of your templates. Off days can stay set to none. Used by the plugin API so a templater-powered daily note can inject the right workout automatically.",
 		);
 
 		const weekdayOrder: Weekday[] = [...WEEKDAY_KEYS];
@@ -258,7 +258,7 @@ export class WorkoutSettingsTab extends PluginSettingTab {
 			new Setting(parent)
 				.setName(WEEKDAY_LABELS[key])
 				.addDropdown((dd) => {
-					dd.addOption("", "None (rest day)");
+					dd.addOption("", "None (off day)");
 					for (const template of settings.templates) {
 						dd.addOption(template.name, template.name);
 					}
@@ -464,11 +464,11 @@ export class WorkoutSettingsTab extends PluginSettingTab {
 	}
 
 	private renderRestTimer(parent: HTMLElement, settings: SettingsLike): void {
-		new Setting(parent).setName("Rest timer").setHeading();
+		new Setting(parent).setName("Break timer").setHeading();
 
 		new Setting(parent)
 			.setName("Default duration")
-			.setDesc("Length of the rest timer in seconds (30 to 300).")
+			.setDesc("Length of the break timer in seconds (30 to 300).")
 			.addSlider((s) => {
 				s.setLimits(30, 300, 5);
 				s.setValue(settings.restDurationSec);
@@ -480,9 +480,9 @@ export class WorkoutSettingsTab extends PluginSettingTab {
 			});
 
 		new Setting(parent)
-			.setName("Superset transition rest")
+			.setName("Superset transition time")
 			.setDesc(
-				"Shorter rest used between exercises within a superset (10–120 seconds). The full default rest still kicks in once you complete a round of all paired exercises.",
+				"Shorter pause between exercises within a superset (10–120 seconds). The full default duration still applies once you complete a round of all paired exercises.",
 			)
 			.addSlider((s) => {
 				s.setLimits(10, 120, 5);
@@ -496,7 +496,7 @@ export class WorkoutSettingsTab extends PluginSettingTab {
 
 		new Setting(parent)
 			.setName("Auto-start after logging a set")
-			.setDesc("Start the rest timer automatically when you mark a set complete.")
+			.setDesc("Start the break timer automatically when you mark a set complete.")
 			.addToggle((t) => {
 				t.setValue(settings.autoStartRest);
 				t.onChange(async (value) => {
@@ -506,7 +506,7 @@ export class WorkoutSettingsTab extends PluginSettingTab {
 			});
 
 		new Setting(parent)
-			.setName("Play sound when rest finishes")
+			.setName("Play sound when the break ends")
 			.setDesc("Plays a short tone if the page is in the foreground.")
 			.addToggle((t) => {
 				t.setValue(settings.playSoundOnRest);

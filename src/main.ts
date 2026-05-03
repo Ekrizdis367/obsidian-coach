@@ -186,13 +186,13 @@ export default class CoachPlugin extends Plugin {
 
 		this.addCommand({
 			id: "start-rest-timer",
-			name: "Start rest timer",
+			name: "Start between-set timer",
 			callback: () => this.restTimer.start(this.settings.restDurationSec),
 		});
 
 		this.addCommand({
 			id: "cancel-rest-timer",
-			name: "Cancel rest timer",
+			name: "Cancel between-set timer",
 			callback: () => this.restTimer.cancel(),
 		});
 

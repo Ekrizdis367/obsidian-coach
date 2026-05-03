@@ -4,7 +4,7 @@ An [Obsidian](https://obsidian.md) plugin that acts as a friendly fitness coach 
 
 ## Screenshots
 
-Workout block with sets, rest timer, and last-session reference:
+Workout block with sets, break timer, and last-session reference:
 
 ![Coach workout block in Obsidian](assets/workouts.png)
 
@@ -16,7 +16,7 @@ Meal log with macro goals, recipe picker, and water bar:
 
 - **Workout templates** with exercises, target sets, reps, and weight, defined in plugin settings.
 - **Bodyweight-aware exercises**: push-ups, pull-ups, dips, plank, etc. are auto-detected from the library and rendered with a reps-only row (no weight column). An "Add weight" toggle is one click away for weighted variants like vest push-ups.
-- **Supersets / circuits**: tag two or more exercises with the same `group` label and they're rendered as a paired block. The rest timer uses a **shorter transition rest** between paired exercises and the **full default rest** when you complete a round of all of them.
+- **Supersets / circuits**: tag two or more exercises with the same `group` label and they're rendered as a paired block. The break timer uses a **shorter transition pause** between paired exercises and the **full default duration** when you complete a round of all of them.
 - **Drop sets and to-failure sets**: per-exercise toggles in the template editor. Drop sets show a `DS` placeholder for the weight on rows 2..N and are excluded from weight / volume PRs. To-failure sets show `2F` as the reps placeholder, hide the rep target, and are excluded from every PR type.
 - **Personal records (PRs)** with on-the-spot celebrations: when a logged set sets a new heaviest weight, best estimated 1RM, or most reps, a colored badge (trophy / trending-up / star) flashes next to that set. The analytics view has a **Personal records** section with recent PRs (last 30 days) plus all-time bests grouped by exercise.
 - **Workout duration auto-tracking**: the first set you log timestamps `startedAt`, and every subsequent set bumps `endedAt`. The header shows the live elapsed time, and the analytics view rolls duration into average / longest session and a recent-sessions sparkline.
@@ -31,7 +31,7 @@ Meal log with macro goals, recipe picker, and water bar:
 - **Pre-populated exercise library** (~35 common lifts plus cardio) with the option to add or edit your own.
 - **Insert workouts into notes** as a self-contained `workout` code block via the command palette.
 - **Interactive rendering**: each block becomes a rich UI with editable sets, "log set" buttons, and a "Last time" reference for each exercise.
-- **Rest timer** with adjustable duration (30 s – 5 min) and a separate **superset transition** rest (10 – 120 s). Survives backgrounding because it's based on absolute timestamps; if you switch apps and come back, the time is still correct.
+- **Break timer** with adjustable duration (30 s – 5 min) and a separate **superset transition** length (10 – 120 s). Survives backgrounding because it's based on absolute timestamps; if you switch apps and come back, the time is still correct.
 - **Analytics view** with per-exercise stats (session count, volume / weekly minutes, estimated 1RM, a 12-week sparkline, recent-sessions list), plus body weight trend, body measurements, nutrition averages, hydration trend, personal records, workout durations, and a **workout adherence calendar** with a **Month / Year** toggle: month view shows the current month at full size; year view shows all 12 months of the current year as compact mini-calendars.
 - **No network calls**, no telemetry, no cloud services. All your data lives in your vault.
 
@@ -571,8 +571,8 @@ If you haven't configured a weekly schedule yet, the section degrades gracefully
 - **Insert water log** — insert a standalone `water` block dated today, pre-filled with your daily target (if set). Use this on workout-only days or notes without meals.
 - **Insert weekly review** — insert a markdown summary of the past 7 days of fitness data.
 - **Open workout analytics** — open the analytics side view.
-- **Start rest timer** — start a rest timer with the configured default duration.
-- **Cancel rest timer** — stop the floating rest timer.
+- **Start between-set timer** — start the floating timer with the configured default duration.
+- **Cancel between-set timer** — stop the floating timer.
 
 ## Settings
 
@@ -580,10 +580,10 @@ If you haven't configured a weekly schedule yet, the section degrades gracefully
 - **Goal body weight** — optional target weight in your selected unit. When set, the body weight analytics section adds a **Goal** stat, a **To goal** delta (`X kg to lose` / `to gain` / `Reached`), and a dashed target line on the 90-day trend chart. Leave blank to disable.
 - **Body data** (height, age, gender, activity level, current weight) — optional, all of it. Powers BMI display in analytics and the **Calculate from body data** button on the daily nutrition goals. The current weight field is a fallback for users who haven't logged a body weight in a workout block yet; logged weights always take precedence. Stored in your vault only. Not medical advice. See [Body data and recommendations](#body-data-and-recommendations).
 - **Fitness goal** — pick what you're working toward (general fitness, lose weight, get lean, build muscle, improve endurance). Drives the calorie delta and protein-per-kg target in the recommended nutrition, plus the training and cardio focus shown in the analytics view. See [Fitness goal](#fitness-goal).
-- **Rest timer duration** (30 – 300 seconds).
-- **Superset transition rest** (10 – 120 seconds) — used between exercises in the same superset group. The full default rest is used after the last exercise in a round.
-- **Auto-start rest timer** when you mark a set complete.
-- **Play sound when rest finishes** (uses the Web Audio API; respects browser autoplay rules).
+- **Break timer duration** (30 – 300 seconds).
+- **Superset transition time** (10 – 120 seconds) — pause between exercises in the same superset group. The full default duration applies after the last exercise in a round.
+- **Auto-start after logging a set** — starts the break timer when you mark a set complete.
+- **Play sound when the break ends** (uses the Web Audio API; respects browser autoplay rules).
 - **Recipes folders** — one or more folders scanned for recipes with nutrition frontmatter (one per line). Subfolders are included automatically, so listing `Cooking` covers `Cooking/Dinner`, `Cooking/Breakfast`, etc.
 - **Track fiber** — opt-in toggle that adds fiber as a 5th macro in the meal log, daily goals, recommended targets, recipe parsing, analytics, and weekly review. Off by default.
 - **Daily nutrition goals** — calories, protein, carbs, fats (and fiber when **Track fiber** is on). The **Calculate from body data** button under this section will preview a recommendation based on your body data and let you apply it in one click. Fiber recommendation uses the standard 14 g per 1000 kcal heuristic.
