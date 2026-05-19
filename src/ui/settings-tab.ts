@@ -902,9 +902,9 @@ class TemplateEditorModal extends Modal {
 		});
 
 		const strengthList = contentEl.createDiv({ cls: "wp-template-exercise-list" });
-		strengthList.createEl("div", { cls: "wp-template-section-label", text: "Strength" });
+		strengthList.createDiv({ cls: "wp-template-section-label", text: "Strength" });
 		if (this.template.exercises.length === 0) {
-			strengthList.createEl("div", { cls: "wp-template-empty", text: "No strength exercises yet." });
+			strengthList.createDiv({ cls: "wp-template-empty", text: "No strength exercises yet." });
 		}
 		for (let i = 0; i < this.template.exercises.length; i++) {
 			const item = this.template.exercises[i];
@@ -913,9 +913,9 @@ class TemplateEditorModal extends Modal {
 		}
 
 		const cardioList = contentEl.createDiv({ cls: "wp-template-exercise-list" });
-		cardioList.createEl("div", { cls: "wp-template-section-label", text: "Cardio" });
+		cardioList.createDiv({ cls: "wp-template-section-label", text: "Cardio" });
 		if (this.template.cardio.length === 0) {
-			cardioList.createEl("div", { cls: "wp-template-empty", text: "No cardio yet." });
+			cardioList.createDiv({ cls: "wp-template-empty", text: "No cardio yet." });
 		}
 		for (let i = 0; i < this.template.cardio.length; i++) {
 			const item = this.template.cardio[i];

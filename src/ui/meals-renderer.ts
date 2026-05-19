@@ -26,6 +26,7 @@ import {
 	sumTotals,
 } from "../utils/nutrition";
 import { generateId } from "../settings";
+import { markEmbedWrapper } from "../utils/embed";
 import { waterUnitFor } from "../utils/format";
 import { RecipeSuggestModal } from "./recipe-suggest-modal";
 import { CustomMealModal } from "./custom-meal-modal";
@@ -92,6 +93,7 @@ function renderMealsBlock(
 	}
 
 	const container = el.createDiv({ cls: "wp-meals" });
+	markEmbedWrapper(container);
 	const file = deps.app.vault.getAbstractFileByPath(ctx.sourcePath);
 	const targetFile = file instanceof TFile ? file : null;
 

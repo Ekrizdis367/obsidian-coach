@@ -22,20 +22,26 @@
 [class*="wp-"] button,
 [class*="wp-"] select,
 [class*="wp-"] textarea {
-	/* Obsidian Mobile ships its own CSS that rounds form controls into
-	 * pills (border-radius ~= 999px) with high-specificity rules we can't
-	 * beat with normal selectors. Using !important here is the only way
-	 * to force the input shape to match the desktop UI — scoped to
-	 * plugin containers so we don't touch Obsidian's own UI. */
-	-webkit-appearance: none !important;
-	appearance: none !important;
+	-webkit-appearance: none;
+	appearance: none;
 	-webkit-tap-highlight-color: transparent;
 	box-shadow: none;
 	background-clip: padding-box;
 	/* Hardcoded 4px (not var(--radius-s)) because Obsidian Mobile's theme
 	 * overrides --radius-s with a much larger value that would otherwise
 	 * keep the inputs looking pill-shaped. */
-	border-radius: 4px !important;
+	border-radius: 4px;
+}
+
+/* Obsidian Mobile ships pill-shaped inputs with high-specificity rules;
+ * chain workspace + view selectors to win without !important. */
+body.is-mobile .workspace-leaf-content [class*="wp-"] input,
+body.is-mobile .workspace-leaf-content [class*="wp-"] button,
+body.is-mobile .workspace-leaf-content [class*="wp-"] select,
+body.is-mobile .workspace-leaf-content [class*="wp-"] textarea {
+	-webkit-appearance: none;
+	appearance: none;
+	border-radius: 4px;
 }
 
 [class*="wp-"] input,
@@ -45,9 +51,15 @@
 	 * below. Removing min-height + pinning line-height collapses the input
 	 * to its content height so the text centers against the padding.
 	 * (Pantry plugin uses the same pair on its stepper input.) */
-	min-height: 0 !important;
-	line-height: 1 !important;
+	min-height: 0;
+	line-height: 1;
 	vertical-align: middle;
+}
+
+body.is-mobile .workspace-leaf-content [class*="wp-"] input,
+body.is-mobile .workspace-leaf-content [class*="wp-"] textarea {
+	min-height: 0;
+	line-height: 1;
 }
 
 /* Hide the native spin buttons on every number input the plugin renders.
@@ -86,9 +98,9 @@
  * the .wp-* rules below to 2px 0 — matching Muse), so this rule sets the
  * wrapper's margin to 0.
  */
-:is(pre, .el-pre, .cm-embed-block):has(.wp-workout),
-:is(pre, .el-pre, .cm-embed-block):has(.wp-meals),
-:is(pre, .el-pre, .cm-embed-block):has(.wp-water--standalone) {
+pre.wp-embed-host,
+.el-pre.wp-embed-host,
+.cm-embed-block.wp-embed-host {
 	margin: 0;
 	padding: 0;
 	background: transparent;
@@ -513,7 +525,7 @@
 }
 
 .wp-rest-timer-btn {
-	flex: 1;
+	flex: 1 1 0;
 	padding: 4px 6px;
 	background: var(--background-secondary);
 	border: 1px solid var(--background-modifier-border);
@@ -720,9 +732,9 @@
 
 /* Highlight icon-toggle buttons in the template editor when their flag
  * is on (drop-set, to-failure). Uses Obsidian's standard accent color. */
-.wp-template-toggle--active {
-	background: color-mix(in srgb, var(--interactive-accent) 22%, transparent) !important;
-	color: var(--interactive-accent) !important;
+.wp-template-modal button.wp-template-toggle--active {
+	background: color-mix(in srgb, var(--interactive-accent) 22%, transparent);
+	color: var(--interactive-accent);
 }
 
 .wp-template-exercise-inputs {
@@ -930,7 +942,7 @@
 }
 
 .wp-adherence-month-title {
-	margin: 0 0 6px 0;
+	margin: 0 0 6px;
 	font-size: var(--font-ui-small, 12px);
 	color: var(--text-muted);
 	text-transform: uppercase;
@@ -967,12 +979,12 @@
 
 .wp-adherence-day--completed {
 	background: var(--color-green, #4caf50);
-	color: var(--text-on-accent, #fff);
+	color: var(--text-on-accent, #ffffff);
 }
 
 .wp-adherence-day--missed {
 	background: var(--color-red, #d04545);
-	color: var(--text-on-accent, #fff);
+	color: var(--text-on-accent, #ffffff);
 }
 
 .wp-adherence-day--rest {
@@ -1191,7 +1203,7 @@
 
 .wp-fitness-goal-preview {
 	margin: -4px 0 12px;
-	padding: 0 16px 0 16px;
+	padding: 0 16px;
 }
 
 .wp-fitness-goal-summary {
@@ -1428,8 +1440,8 @@
 .wp-macro--carbs .wp-macro-bar-fill { background: var(--color-yellow, var(--interactive-accent)); }
 .wp-macro--fats .wp-macro-bar-fill { background: var(--color-purple, var(--interactive-accent)); }
 
-.wp-macro-bar-fill--over {
-	background: var(--text-error, #c0392b) !important;
+.wp-macro .wp-macro-bar .wp-macro-bar-fill.wp-macro-bar-fill--over {
+	background: var(--text-error, #c0392b);
 }
 
 .wp-macro-remaining,
@@ -1616,8 +1628,8 @@
 	display: grid;
 	grid-template-columns: repeat(2, minmax(0, 1fr));
 	gap: 8px 12px;
-	margin: 0 0 18px 0;
-	padding: 0 0 12px 0;
+	margin: 0 0 18px;
+	padding: 0 0 12px;
 }
 
 @media (min-width: 720px) {
@@ -1675,8 +1687,6 @@
 }
 
 .wp-legend-goal::before {
-	background: var(--text-muted);
-	border-top: 1px dashed var(--text-muted);
 	background: transparent;
 	height: 0;
 	border-top: 2px dashed var(--text-muted);
@@ -1701,7 +1711,7 @@
 	display: inline-flex;
 	align-items: center;
 	gap: 6px;
-	margin: 0 0 6px 0;
+	margin: 0 0 6px;
 	color: var(--interactive-accent);
 	font-size: var(--font-ui-small, 12px);
 	font-weight: 600;
@@ -1849,7 +1859,7 @@
 }
 
 .wp-measurement-input {
-	flex: 1;
+	flex: 1 1 0;
 	min-width: 0;
 	padding: 2px 6px;
 	background: var(--background-primary);
@@ -2011,7 +2021,7 @@
 }
 
 .wp-water-bar {
-	flex: 1;
+	flex: 1 1 0;
 	min-width: 100px;
 	height: 6px;
 	background: var(--background-modifier-border);
@@ -2166,7 +2176,7 @@
 
 .wp-records-recent h5,
 .wp-records-all h5 {
-	margin: 8px 0 6px 0;
+	margin: 8px 0 6px;
 }
 
 .wp-records-list {

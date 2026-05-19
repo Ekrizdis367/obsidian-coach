@@ -66,7 +66,7 @@ export class RestTimerController {
 
 	private ensureWidget(): void {
 		if (this.root) return;
-		const root = document.body.createDiv({ cls: "wp-rest-timer" });
+		const root = activeDocument.body.createDiv({ cls: "wp-rest-timer" });
 		const inner = root.createDiv({ cls: "wp-rest-timer-inner" });
 
 		this.labelEl = inner.createDiv({ cls: "wp-rest-timer-label", text: "Break" });

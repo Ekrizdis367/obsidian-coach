@@ -8,6 +8,7 @@ import {
 } from "obsidian";
 import type { WaterBlock, WaterUnit, WeightUnit } from "../types";
 import { parseWaterBlock, updateWaterBlock } from "../data/water-block";
+import { markEmbedWrapper } from "../utils/embed";
 import { defaultWaterTargetFor, formatWater, waterUnitFor } from "../utils/format";
 
 export interface WaterRendererDeps {
@@ -85,6 +86,7 @@ function renderStandaloneWaterBlock(
 	}
 
 	const container = el.createDiv({ cls: "wp-water wp-water--standalone" });
+	markEmbedWrapper(container);
 	const file = deps.app.vault.getAbstractFileByPath(ctx.sourcePath);
 	const targetFile = file instanceof TFile ? file : null;
 

@@ -34,7 +34,7 @@ export function renderSparkline(
 
 	if (points.length === 0) return null;
 
-	const svg = document.createElementNS(SVG_NS, "svg");
+	const svg = activeDocument.createElementNS(SVG_NS, "svg");
 	svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
 	svg.setAttribute("class", "wp-sparkline");
 	svg.setAttribute("role", "img");
@@ -79,7 +79,7 @@ export function renderSparkline(
 			`L ${coords[coords.length - 1]?.x ?? 0} ${pad + innerH}`,
 			"Z",
 		].join(" ");
-		const fill = document.createElementNS(SVG_NS, "path");
+		const fill = activeDocument.createElementNS(SVG_NS, "path");
 		fill.setAttribute("d", fillPath);
 		fill.setAttribute("class", "wp-sparkline-fill");
 		svg.appendChild(fill);
@@ -88,7 +88,7 @@ export function renderSparkline(
 	const linePath = coords
 		.map((c, i) => `${i === 0 ? "M" : "L"} ${c.x} ${c.y}`)
 		.join(" ");
-	const line = document.createElementNS(SVG_NS, "path");
+	const line = activeDocument.createElementNS(SVG_NS, "path");
 	line.setAttribute("d", linePath);
 	line.setAttribute("class", "wp-sparkline-line");
 	line.setAttribute("fill", "none");
@@ -96,7 +96,7 @@ export function renderSparkline(
 
 	if (showDots) {
 		for (const c of coords) {
-			const dot = document.createElementNS(SVG_NS, "circle");
+			const dot = activeDocument.createElementNS(SVG_NS, "circle");
 			dot.setAttribute("cx", c.x.toString());
 			dot.setAttribute("cy", c.y.toString());
 			dot.setAttribute("r", "2");
@@ -111,7 +111,7 @@ export function renderSparkline(
 		const overlayPath = overlayCoords
 			.map((c, i) => `${i === 0 ? "M" : "L"} ${c.x} ${c.y}`)
 			.join(" ");
-		const overlayLine = document.createElementNS(SVG_NS, "path");
+		const overlayLine = activeDocument.createElementNS(SVG_NS, "path");
 		overlayLine.setAttribute("d", overlayPath);
 		overlayLine.setAttribute("class", overlay.className ?? "wp-sparkline-overlay");
 		overlayLine.setAttribute("fill", "none");

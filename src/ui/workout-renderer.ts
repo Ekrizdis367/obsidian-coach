@@ -21,6 +21,7 @@ import {
 	formatSetsSummary,
 	formatWeight,
 } from "../utils/format";
+import { markEmbedWrapper } from "../utils/embed";
 import { RestTimerController } from "./rest-timer";
 
 export interface WorkoutRendererDeps {
@@ -83,6 +84,7 @@ function renderWorkoutBlock(
 	}
 
 	const container = el.createDiv({ cls: "wp-workout" });
+	markEmbedWrapper(container);
 	const file = deps.app.vault.getAbstractFileByPath(ctx.sourcePath);
 	const targetFile = file instanceof TFile ? file : null;
 
@@ -774,7 +776,7 @@ function renderCardioRow(
 	cardio: BlockCardio,
 	cardioIndex: number,
 	block: WorkoutBlock,
-	deps: WorkoutRendererDeps,
+	_deps: WorkoutRendererDeps,
 	persist: (next: WorkoutBlock) => void,
 ): void {
 	const row = parent.createDiv({ cls: "wp-set wp-cardio-row" });
