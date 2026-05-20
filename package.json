@@ -1,6 +1,6 @@
 {
 	"name": "coach",
-	"version": "1.0.3",
+	"version": "1.0.4",
 	"description": "Train, fuel, and track. A friendly fitness coach in your vault — workouts, body data, and meal logging all in one.",
 	"main": "main.js",
 	"type": "module",
