@@ -33,6 +33,8 @@ export interface WorkoutRendererDeps {
 	getShowAddSetButton: () => boolean;
 	historyIndex: HistoryIndex;
 	restTimer: RestTimerController;
+	getWorkoutCollapsed: (filePath: string) => boolean;
+	setWorkoutCollapsed: (filePath: string, collapsed: boolean) => void;
 }
 
 interface PRBadgeKind {
@@ -100,11 +102,11 @@ function renderWorkoutBlock(
 	const state: WorkoutBlock = cloneBlock(block);
 
 	// Collapse state is a UI preference — not worth round-tripping through
-	// the block YAML, so we keep it in localStorage keyed on the note path.
-	// Notes with multiple workout blocks share a single toggle; that's fine
-	// in practice since it's a rare layout.
-	const collapseKey = targetFile ? `coach:workout-collapsed:${targetFile.path}` : null;
-	const initialCollapsed = collapseKey ? window.localStorage.getItem(collapseKey) === "1" : false;
+	// the block YAML, so we persist it via the plugin data API keyed on the
+	// note path. Notes with multiple workout blocks share a single toggle;
+	// that's fine in practice since it's a rare layout.
+	const filePath = targetFile?.path ?? null;
+	const initialCollapsed = filePath ? deps.getWorkoutCollapsed(filePath) : false;
 	if (initialCollapsed) container.addClass("wp-workout--collapsed");
 
 	renderHeader(container, state, deps, persist, {
@@ -112,15 +114,7 @@ function renderWorkoutBlock(
 		onToggle: () => {
 			const nowCollapsed = !container.hasClass("wp-workout--collapsed");
 			container.toggleClass("wp-workout--collapsed", nowCollapsed);
-			if (collapseKey) {
-				try {
-					window.localStorage.setItem(collapseKey, nowCollapsed ? "1" : "0");
-				} catch {
-					// Obsidian Mobile can run in constrained storage modes; a
-					// lost preference is harmless so we just swallow the
-					// error rather than surfacing it to the user.
-				}
-			}
+			if (filePath) deps.setWorkoutCollapsed(filePath, nowCollapsed);
 		},
 	});
 

@@ -95,7 +95,7 @@ body.is-mobile .workspace-leaf-content [class*="wp-"] textarea {
  * Targets the Reading-mode wrappers (<pre>, .el-pre) and the Live Preview
  * wrapper (.cm-embed-block) so the visual is consistent across both
  * modes. Inter-card spacing is driven by the card's own margin (set on
- * the .wp-* rules below to 2px 0 — matching Muse), so this rule sets the
+ * the .wp-* rules below to 2px 0 — matching Almanac), so this rule sets the
  * wrapper's margin to 0.
  */
 pre.wp-embed-host,
@@ -115,7 +115,7 @@ pre.wp-embed-host,
 	padding: 12px 14px;
 	background: var(--background-secondary);
 	/* 2px vertical margin gives a faint hairline seam between adjacent
-	 * cards in a daily note (matches Muse). Margin lives on the card
+	 * cards in a daily note (matches Almanac). Margin lives on the card
 	 * itself rather than the codeblock wrapper so it works equally in
 	 * Reading mode and Live Preview, where the wrapper element differs. */
 	margin: 2px 0;

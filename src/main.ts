@@ -34,17 +34,21 @@ import { createWorkoutApi, type WorkoutPlannerApi } from "./api";
 interface SavedData {
 	settings: WorkoutSettings;
 	restTimer: RestTimerState | null;
+	/** Per-note workout block collapsed state (file path → collapsed). */
+	workoutCollapsed?: Record<string, boolean>;
 }
 
 const DEFAULT_SAVED: SavedData = {
 	settings: DEFAULT_SETTINGS,
 	restTimer: null,
+	workoutCollapsed: {},
 };
 
 export default class CoachPlugin extends Plugin {
 	settings!: WorkoutSettings;
 	api!: WorkoutPlannerApi;
 	private restTimerState: RestTimerState | null = null;
+	private workoutCollapsed: Record<string, boolean> = {};
 	private historyIndex!: HistoryIndex;
 	private recipeIndex!: RecipeIndex;
 	private restTimer!: RestTimerController;
@@ -79,6 +83,12 @@ export default class CoachPlugin extends Plugin {
 				getShowAddSetButton: () => this.settings.showAddSetButton,
 				historyIndex: this.historyIndex,
 				restTimer: this.restTimer,
+				getWorkoutCollapsed: (path) => this.workoutCollapsed[path] === true,
+				setWorkoutCollapsed: (path, collapsed) => {
+					if (collapsed) this.workoutCollapsed[path] = true;
+					else delete this.workoutCollapsed[path];
+					void this.persistData();
+				},
 			},
 		);
 
@@ -265,6 +275,7 @@ export default class CoachPlugin extends Plugin {
 		const merged: SavedData = {
 			settings: { ...DEFAULT_SAVED.settings, ...(raw?.settings ?? {}) },
 			restTimer: raw?.restTimer ?? null,
+			workoutCollapsed: raw?.workoutCollapsed ?? {},
 		};
 		if (!merged.settings.exercises || merged.settings.exercises.length === 0) {
 			merged.settings.exercises = DEFAULT_SETTINGS.exercises;
@@ -302,12 +313,14 @@ export default class CoachPlugin extends Plugin {
 			: false;
 		this.settings = merged.settings;
 		this.restTimerState = merged.restTimer;
+		this.workoutCollapsed = merged.workoutCollapsed ?? {};
 	}
 
 	private async persistData(): Promise<void> {
 		const data: SavedData = {
 			settings: this.settings,
 			restTimer: this.restTimerState,
+			workoutCollapsed: this.workoutCollapsed,
 		};
 		await this.saveData(data);
 	}

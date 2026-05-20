@@ -1,4 +1,5 @@
-import { App, TFile, debounce } from "obsidian";
+import { App, TFile, TFolder, debounce } from "obsidian";
+import { collectMarkdownFiles } from "../utils/vault-files";
 import type { MealType, NutritionTotals, RecipeInfo } from "../types";
 
 export interface RecipeIndexDeps {
@@ -118,13 +119,21 @@ export class RecipeIndex {
 		this.byPath.clear();
 		this.byBasename.clear();
 		const folders = this.normalizedFolders();
-		const files = this.app.vault.getMarkdownFiles();
+		const files =
+			folders.length > 0
+				? folders.flatMap((folder) => this.markdownFilesInFolder(folder))
+				: collectMarkdownFiles(this.app.vault.getRoot());
 		for (const file of files) {
-			if (folders.length > 0 && !this.isInsideAnyFolder(file.path, folders)) continue;
 			const info = this.readRecipe(file);
 			if (info) this.byPath.set(file.path, info);
 		}
 		this.rebuildBasenameIndex();
+	}
+
+	private markdownFilesInFolder(folderPath: string): TFile[] {
+		const folder = this.app.vault.getAbstractFileByPath(folderPath);
+		if (!(folder instanceof TFolder)) return [];
+		return collectMarkdownFiles(folder);
 	}
 
 	private rebuildBasenameIndex(): void {

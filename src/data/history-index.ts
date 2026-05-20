@@ -1,4 +1,5 @@
 import { App, TFile, debounce } from "obsidian";
+import { collectMarkdownFiles } from "../utils/vault-files";
 import type {
 	BodyweightEntry,
 	HistoryEntry,
@@ -313,7 +314,7 @@ export class HistoryIndex {
 		this.durations = [];
 		this.mealsByFile.clear();
 		this.waterByFile.clear();
-		const files = this.app.vault.getMarkdownFiles();
+		const files = collectMarkdownFiles(this.app.vault.getRoot());
 		for (const file of files) {
 			await this.indexFile(file);
 		}
