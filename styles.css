@@ -2269,3 +2269,134 @@ pre.wp-embed-host,
 		grid-column: 2;
 	}
 }
+
+/* --- Hearth (today macros glance) ---------------------------------------- */
+
+.wp-hearth {
+	padding: 10px 12px 12px;
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	height: 100%;
+	box-sizing: border-box;
+	overflow: auto;
+}
+
+.wp-hearth-header {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: 4px 10px;
+}
+
+.wp-hearth-title-row {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.wp-hearth-icon {
+	display: inline-flex;
+	color: var(--text-muted);
+}
+
+.wp-hearth-icon .svg-icon {
+	width: 16px;
+	height: 16px;
+}
+
+.wp-hearth-title {
+	font-weight: 600;
+	font-size: var(--font-ui-medium, 14px);
+}
+
+.wp-hearth-date {
+	color: var(--text-muted);
+	font-size: var(--font-ui-small, 12px);
+	font-variant-numeric: tabular-nums;
+}
+
+.wp-hearth-open {
+	margin-left: auto;
+	background: transparent;
+	border: none;
+	color: var(--text-accent);
+	cursor: pointer;
+	padding: 0;
+	font-size: var(--font-ui-small, 12px);
+}
+
+.wp-hearth-open:hover {
+	color: var(--text-normal);
+	text-decoration: underline;
+}
+
+.wp-hearth-goals {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 6px;
+}
+
+.wp-hearth-goals .wp-macro {
+	padding: 6px 8px;
+	gap: 3px;
+}
+
+.wp-hearth-goals .wp-macro-head {
+	font-size: 11px;
+}
+
+.wp-hearth-goals .wp-macro-bar {
+	height: 4px;
+}
+
+.wp-hearth-water {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	padding: 6px 8px;
+	background: var(--background-primary);
+	border-radius: var(--radius-s, 4px);
+}
+
+.wp-hearth-water-head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	font-size: 11px;
+}
+
+.wp-hearth-water-label {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	color: var(--text-muted);
+}
+
+.wp-hearth-water-value {
+	font-variant-numeric: tabular-nums;
+	color: var(--text-normal);
+}
+
+.wp-hearth-water .wp-water-bar {
+	height: 4px;
+}
+
+.wp-hearth-empty {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 10px;
+	padding: 4px 0;
+}
+
+.wp-hearth-empty-copy {
+	color: var(--text-muted);
+	font-size: var(--font-ui-small, 12px);
+	line-height: 1.4;
+}
+
+.wp-hearth-create {
+	font-size: var(--font-ui-small, 12px);
+}

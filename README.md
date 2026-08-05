@@ -33,6 +33,7 @@ Meal log with macro goals, recipe picker, and water bar:
 - **Interactive rendering**: each block becomes a rich UI with editable sets, "log set" buttons, and a "Last time" reference for each exercise.
 - **Break timer** with adjustable duration (30 s – 5 min) and a separate **superset transition** length (10 – 120 s). Survives backgrounding because it's based on absolute timestamps; if you switch apps and come back, the time is still correct.
 - **Analytics view** with per-exercise stats (session count, volume / weekly minutes, estimated 1RM, a 12-week sparkline, recent-sessions list), plus body weight trend, body measurements, nutrition averages, hydration trend, personal records, workout durations, and a **workout adherence calendar** with a **Month / Year** toggle: month view shows the current month at full size; year view shows all 12 months of the current year as compact mini-calendars.
+- **Hearth view** — a compact today-only glance of calorie / macro / water progress toward your goals. Opens via **Open hearth** (view type `coach-hearth`) so it can sit on a [Hearth](https://github.com/ondreu/hearth) dashboard as a plugin-view card. Glance-only; offers **Create daily note** when today's note is missing.
 - **No network calls**, no telemetry, no cloud services. All your data lives in your vault.
 
 ## How it works
@@ -561,6 +562,7 @@ If you haven't configured a weekly schedule yet, the section degrades gracefully
 - **Insert water log** — insert a standalone `water` block dated today, pre-filled with your daily target (if set). Use this on workout-only days or notes without meals.
 - **Insert weekly review** — insert a markdown summary of the past 7 days of fitness data.
 - **Open workout analytics** — open the analytics side view.
+- **Open hearth** — open the today-only macros + water glance (compact; works as a Hearth dashboard plugin-view card via view type `coach-hearth`).
 - **Start between-set timer** — start the floating timer with the configured default duration.
 - **Cancel between-set timer** — stop the floating timer.
 

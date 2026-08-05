@@ -22,6 +22,7 @@ import { registerWorkoutBlockProcessor } from "./ui/workout-renderer";
 import { registerMealsBlockProcessor } from "./ui/meals-renderer";
 import { registerWaterBlockProcessor } from "./ui/water-renderer";
 import { ANALYTICS_VIEW_TYPE, AnalyticsView } from "./ui/analytics-view";
+import { HEARTH_VIEW_TYPE, HearthView } from "./ui/hearth-view";
 import { WorkoutSettingsTab } from "./ui/settings-tab";
 import { effectiveWeight } from "./utils/body-stats";
 import { openInsertWorkoutCommand } from "./commands/insert-workout";
@@ -61,7 +62,10 @@ export default class CoachPlugin extends Plugin {
 		this.historyIndex = new HistoryIndex(this.app);
 		this.recipeIndex = new RecipeIndex(this.app, {
 			getFolders: () => this.settings.recipesFolders,
-			onChanged: () => this.refreshAnalyticsViews(),
+			onChanged: () => {
+				this.refreshAnalyticsViews();
+				this.refreshHearthViews();
+			},
 		});
 		this.restTimer = new RestTimerController(this, {
 			getDefaultDurationSec: () => this.settings.restDurationSec,
@@ -147,6 +151,18 @@ export default class CoachPlugin extends Plugin {
 			}),
 		);
 
+		this.registerView(
+			HEARTH_VIEW_TYPE,
+			(leaf: WorkspaceLeaf) => new HearthView(leaf, {
+				historyIndex: this.historyIndex,
+				recipes: this.recipeIndex,
+				getUnit: () => this.settings.weightUnit,
+				getGoals: () => this.settings.nutritionGoals,
+				getTrackFiber: () => this.settings.trackFiber,
+				getWaterTarget: () => this.settings.waterTarget,
+			}),
+		);
+
 		this.addCommand({
 			id: "insert-workout",
 			name: "Insert workout",
@@ -205,6 +221,12 @@ export default class CoachPlugin extends Plugin {
 		});
 
 		this.addCommand({
+			id: "open-hearth",
+			name: "Open hearth",
+			callback: () => this.activateHearthView(),
+		});
+
+		this.addCommand({
 			id: "start-rest-timer",
 			name: "Start between-set timer",
 			callback: () => this.restTimer.start(this.settings.restDurationSec),
@@ -233,6 +255,7 @@ export default class CoachPlugin extends Plugin {
 			this.recipeIndex.rebuild();
 			this.restTimer.hydrate(this.restTimerState);
 			this.refreshAnalyticsViews();
+			this.refreshHearthViews();
 		});
 
 		this.registerEvent(
@@ -241,6 +264,7 @@ export default class CoachPlugin extends Plugin {
 					void this.historyIndex.onFileChange(file);
 					this.recipeIndex.onFileChange(file);
 					this.refreshAnalyticsViews();
+					this.refreshHearthViews();
 				}
 			}),
 		);
@@ -249,6 +273,7 @@ export default class CoachPlugin extends Plugin {
 				if (file instanceof TFile && file.extension === "md") {
 					void this.historyIndex.onFileChange(file);
 					this.recipeIndex.onFileChange(file);
+					this.refreshHearthViews();
 				}
 			}),
 		);
@@ -257,6 +282,7 @@ export default class CoachPlugin extends Plugin {
 				this.historyIndex.onFileDelete(file.path);
 				this.recipeIndex.onFileDelete(file.path);
 				this.refreshAnalyticsViews();
+				this.refreshHearthViews();
 			}),
 		);
 		this.registerEvent(
@@ -351,11 +377,35 @@ export default class CoachPlugin extends Plugin {
 		await workspace.revealLeaf(leaf);
 	}
 
+	private async activateHearthView(): Promise<void> {
+		const { workspace } = this.app;
+		const existing = workspace.getLeavesOfType(HEARTH_VIEW_TYPE);
+		if (existing.length > 0) {
+			const leaf = existing[0];
+			if (leaf) {
+				await workspace.revealLeaf(leaf);
+				return;
+			}
+		}
+		const leaf = workspace.getRightLeaf(false);
+		if (!leaf) return;
+		await leaf.setViewState({ type: HEARTH_VIEW_TYPE, active: true });
+		await workspace.revealLeaf(leaf);
+	}
+
 	private refreshAnalyticsViews(): void {
 		const leaves = this.app.workspace.getLeavesOfType(ANALYTICS_VIEW_TYPE);
 		for (const leaf of leaves) {
 			const view = leaf.view;
 			if (view instanceof AnalyticsView) view.scheduleRender();
+		}
+	}
+
+	private refreshHearthViews(): void {
+		const leaves = this.app.workspace.getLeavesOfType(HEARTH_VIEW_TYPE);
+		for (const leaf of leaves) {
+			const view = leaf.view;
+			if (view instanceof HearthView) view.scheduleRender();
 		}
 	}
 }
