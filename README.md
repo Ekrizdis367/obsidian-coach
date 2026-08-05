@@ -18,10 +18,10 @@ Meal log with macro goals, recipe picker, and water bar:
 - **Bodyweight-aware exercises**: push-ups, pull-ups, dips, plank, etc. are auto-detected from the library and rendered with a reps-only row (no weight column). An "Add weight" toggle is one click away for weighted variants like vest push-ups.
 - **Supersets / circuits**: tag two or more exercises with the same `group` label and they're rendered as a paired block. The break timer uses a **shorter transition pause** between paired exercises and the **full default duration** when you complete a round of all of them.
 - **Drop sets and to-failure sets**: per-exercise toggles in the template editor. Drop sets show a `DS` placeholder for the weight on rows 2..N and are excluded from weight / volume PRs. To-failure sets show `2F` as the reps placeholder, hide the rep target, and are excluded from every PR type.
-- **Personal records (PRs)** with on-the-spot celebrations: when a logged set sets a new heaviest weight, best estimated 1RM, or most reps, a colored badge (trophy / trending-up / star) flashes next to that set. The analytics view has a **Personal records** section with recent PRs (last 30 days) plus all-time bests grouped by exercise.
+- **Personal records (PRs)** in analytics: the analytics view has a **Personal records** section with recent PRs (last 30 days) plus all-time bests grouped by exercise (heaviest weight, best estimated 1RM, most reps, session volume, cardio duration / distance).
 - **Workout duration auto-tracking**: the first set you log timestamps `startedAt`, and every subsequent set bumps `endedAt`. The header shows the live elapsed time, and the analytics view rolls duration into average / longest session and a recent-sessions sparkline.
 - **Body measurements** (waist, chest, hips, biceps, thighs, neck): collapse-by-default panel in the workout block header. Each one charts independently in the analytics view with a 30-day delta and mini-sparkline.
-- **Body weight logging**: each workout block has an optional "Body weight" input. The analytics view tracks your weight over time with a 90-day chart, a 7-day moving average overlay, and 30/90-day deltas. Add an optional height, age, gender, and activity level under settings to also see your BMI and a starting-point recommendation for daily calories and macros based on your current and goal weight.
+- **Body weight logging**: each workout block has an optional "Body weight" input — including rest-day cards when no workout is scheduled. The analytics view tracks your weight over time with a 90-day chart, a 7-day moving average overlay, and 30/90-day deltas. Add an optional height, age, gender, and activity level under settings to also see your BMI and a starting-point recommendation for daily calories and macros based on your current and goal weight.
 - **Fitness goal & focus**: pick a goal (general fitness, lose weight, get lean, build muscle, or improve endurance) and the analytics view shows a tailored training prescription (rep ranges, intensity), a cardio prescription with a target heart-rate zone in bpm, and goal-tuned calorie and macro recommendations.
 - **Cardio tracking** alongside strength: simple **minutes-only logs by default** for stationary bike, treadmill walk, elliptical, etc., or opt-in to **distance, pace, and finish-time fields** per entry to log "5 km in 28:00 → 5:36/km" for a run. The analytics view sums total distance, surfaces your farthest session with auto-computed pace, and lists pace and finish times in recent sessions.
 - **Meal log with nutrition goals**: a separate `meals` code block (works on rest days too) tracks daily intake against your calorie / protein / carbs / fats goals. Pull recipes from configured folders, or add **freeform one-off entries** ("Pad thai @ restaurant ~900 cal, 30P") via the **Add custom** button when you don't want to write a full recipe note.
@@ -266,9 +266,9 @@ The plugin derives PRs from your logged history across these categories:
 - **Longest cardio** — cardio entry with the most minutes.
 - **Farthest cardio** — cardio entry with the largest distance value.
 
-When a logged set sets a new PR in **weight**, **e1rm**, or **reps**, a small colored badge flashes next to that set inside the workout block (trophy / trending-up / star, with tooltips). The analytics view's **Personal records** section lists recent PRs (last 30 days) at the top and groups all-time bests by exercise below.
+When a logged set sets a new PR in **weight**, **e1rm**, or **reps**, it shows up in the analytics view's **Personal records** section (recent PRs for the last 30 days at the top, all-time bests grouped by exercise below). Per-set celebration badges were removed from the workout card to keep logging compact — records live in analytics instead.
 
-PRs are computed against your existing history — so backfilling old workouts won't trigger badges for sets that aren't actually new bests.
+PRs are computed against your existing history — so backfilling old workouts won't invent new records for sets that aren't actually new bests.
 
 ### Weekly review
 
@@ -415,72 +415,62 @@ To install: copy any or all of those folders into your vault under whatever pare
 
 ## Templater integration
 
-If you keep a Templater-powered daily note, the plugin exposes a small API so your template can inject the right workout automatically based on the day of the week — plus matching helpers that emit a fresh meals block and water block stamped with today's date.
+If you keep a Templater-powered daily note, the plugin exposes a small API so your template can inject the right workout automatically based on the day of the week — plus matching helpers that emit a fresh meals block and water block stamped with the note's date.
 
 ### 1. Map weekdays to templates
 
-Open **Settings → Coach → Weekly schedule** and pick a template for each day (leave days blank for rest days).
+Open **Settings → Coach → Weekly schedule** and pick a template for each day (leave days blank for rest days). Rest days still get a workout card that reminds you it's a rest day and prompts for body weight.
 
 ### 2. Call the API from your daily note template
 
+Prefer `get*ForDate(...)` with the daily note's date so backfilled or ahead-of-time notes match the note — not the wall clock. If your daily note title is `YYYY-MM-DD` (Obsidian's default), pass `tp.file.title`:
+
 ```templater
 <%*
-const planner = app.plugins.plugins["coach"];
-const block = planner?.api.getWorkoutForToday() ?? "";
-if (block) tR += block + "\n";
+const coach = app.plugins.plugins["coach"]?.api;
+const noteDate = tp.file.title; // YYYY-MM-DD
+tR += coach?.getWorkoutForDate(noteDate) ?? "";
+tR += coach?.getMealLogForDate(noteDate) ?? "";
 %>
 ```
 
-**Workout helpers (date-aware, may be empty on rest days)**
+**Workout helpers**
 
-- `api.getWorkoutForToday()` — returns a full ` ```workout ... ``` ` block (as a string) for today's scheduled template, with `date:` set to today. Returns an empty string on rest days or if the template can't be found.
-- `api.getWorkoutForDate(date)` — same, but for an explicit date. Accepts a `Date` or an ISO string (`YYYY-MM-DD`). Handy when Templater creates a daily note for a different day.
+- `api.getWorkoutForDate(date)` — returns a full ` ```workout ... ``` ` block for the scheduled template on that day, with `date:` set accordingly. On rest days (no template mapped) it returns a rest-day card that still accepts body weight. Accepts a `Date`, a `YYYY-MM-DD` string, or any string that contains a `YYYY-MM-DD` (title or path).
+- `api.getWorkoutForToday()` — same as `getWorkoutForDate()` with no argument (wall-clock today). Prefer `getWorkoutForDate(tp.file.title)` in daily-note templates.
 - `api.getTemplateNameForDate(date?)` — returns just the scheduled template name (or `null`) if you want to branch on it in your template.
 - `api.getTemplateForDate(date?)` — returns the full template object (`{ id, name, exercises, cardio }`) if you want to introspect it before deciding what to render.
 
 **Meals & water helpers (always return a block)**
 
-- `api.getMealLogForToday()` — returns a fresh ` ```meals ... ``` ` block stamped with today's date and `entries: []`. Mirrors what the **Insert meal log** command produces, so the meals renderer and history index pick it up the same way.
-- `api.getMealLogForDate(date)` — same, but for an explicit date.
-- `api.getWaterBlockForToday()` — returns a fresh ` ```water ... ``` ` block with today's date and `amount: 0`. The daily target is intentionally omitted so the bar keeps following your settings; add `target:` manually inside the block if you want to override for that one day.
-- `api.getWaterBlockForDate(date)` — same, but for an explicit date.
+- `api.getMealLogForDate(date)` — returns a fresh ` ```meals ... ``` ` block stamped with the given date and `entries: []`.
+- `api.getMealLogForToday()` — wall-clock today; prefer the date-aware form in daily notes.
+- `api.getWaterBlockForDate(date)` / `api.getWaterBlockForToday()` — fresh ` ```water ... ``` ` blocks. The daily target is intentionally omitted so the bar keeps following your settings; add `target:` manually inside the block if you want to override for that one day.
 
-> The meals renderer already embeds the water tracker, so you usually only need `getMealLogForToday()` in a daily note. Use `getWaterBlockForToday()` if you want a standalone hydration strip somewhere else in the page (e.g. on a dashboard).
+> The meals renderer already embeds the water tracker, so you usually only need `getMealLogForDate(noteDate)` in a daily note. Use `getWaterBlockForDate` if you want a standalone hydration strip somewhere else in the page (e.g. on a dashboard).
 
 ### Example: full daily-note template
 
 ````markdown
-# <% tp.date.now("dddd, MMMM D") %>
+# <% tp.date.now("dddd, MMMM D", 0, tp.file.title, "YYYY-MM-DD") %>
 
 <%*
 const coach = app.plugins.plugins["coach"]?.api;
-const name = coach?.getTemplateNameForDate();
+const noteDate = tp.file.title;
+const name = coach?.getTemplateNameForDate(noteDate);
 %>
 ## <% name ? `Workout — ${name}` : "Rest day" %>
 
-<%* tR += coach?.getWorkoutForToday() ?? "" %>
+<%* tR += coach?.getWorkoutForDate(noteDate) ?? "" %>
 
 ## Meals
 
-<%* tR += coach?.getMealLogForToday() ?? "" %>
+<%* tR += coach?.getMealLogForDate(noteDate) ?? "" %>
 ````
-
-The same template, but for a daily note that sits on tomorrow's date (e.g. you template ahead the night before):
-
-```templater
-<%*
-const coach = app.plugins.plugins["coach"]?.api;
-tR += coach?.getWorkoutForDate(tp.file.title) ?? "";
-tR += "\n\n";
-tR += coach?.getMealLogForDate(tp.file.title) ?? "";
-%>
-```
-
-(assuming your daily note filename is `YYYY-MM-DD`.)
 
 ### Behavior notes
 
-- **Local time zone**: weekday resolution uses `Date#getDay()`, so the schedule is keyed to your local time zone (not UTC). When you pass a `YYYY-MM-DD` string, the API parses it as a local date so you don't get off-by-one bugs across midnight.
+- **Local time zone**: weekday resolution uses `Date#getDay()`, so the schedule is keyed to your local time zone (not UTC). When you pass a `YYYY-MM-DD` string (or a path/title containing one), the API parses it as a local date so you don't get off-by-one bugs across midnight.
 - **Renamed or deleted templates self-heal**: on plugin load, any weekday whose mapped template no longer exists is reset to "None". You won't get a stale mapping silently producing an empty block forever.
 - **No reload required after editing the schedule**: the API reads settings live, so changes you make in the settings tab take effect immediately for the next Templater run.
 - **Plugin must be enabled**: the `app.plugins.plugins["coach"]` lookup returns `undefined` if the plugin is disabled — the optional chaining (`?.`) in the snippets above keeps your template from throwing in that case.

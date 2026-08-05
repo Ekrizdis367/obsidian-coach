@@ -7,7 +7,7 @@ export function templateToBlock(
 	date: string,
 ): WorkoutBlock {
 	if (!template) {
-		return { template: undefined, date, exercises: [], cardio: [] };
+		return { date, rest: true, exercises: [], cardio: [] };
 	}
 	return {
 		template: template.name,
@@ -43,4 +43,9 @@ export function buildWorkoutBlockText(
 	const block = templateToBlock(template, iso);
 	const yaml = serializeWorkoutBlock(block).trimEnd();
 	return "```workout\n" + yaml + "\n```";
+}
+
+/** Rest-day workout card — no exercises, still accepts body weight. */
+export function buildRestDayBlockText(date: Date | string = new Date()): string {
+	return buildWorkoutBlockText(null, date);
 }

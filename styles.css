@@ -192,6 +192,7 @@ pre.wp-embed-host,
 .wp-workout--collapsed .wp-measurements,
 .wp-workout--collapsed .wp-exercises,
 .wp-workout--collapsed .wp-cardio,
+.wp-workout--collapsed .wp-rest-day,
 .wp-workout--collapsed .wp-empty {
 	display: none;
 }
@@ -325,12 +326,7 @@ pre.wp-embed-host,
 
 .wp-set {
 	display: grid;
-	/* The 7th `auto` column is for `.wp-pr-badges`, which is always
-	 * appended as a child of the row. Without an explicit column the
-	 * badges div overflows onto an implicit second grid row and inherits
-	 * the parent's line-height, which shows up as an empty band below
-	 * every set row on mobile. */
-	grid-template-columns: 22px minmax(60px, 1fr) auto minmax(60px, 1fr) auto auto auto;
+	grid-template-columns: 22px minmax(60px, 1fr) auto minmax(60px, 1fr) auto auto;
 	align-items: center;
 	gap: 8px;
 	padding: 4px 8px;
@@ -339,8 +335,8 @@ pre.wp-embed-host,
 }
 
 .wp-set--bodyweight {
-	/* 5 columns: set# / reps / "reps" / commit / badges. */
-	grid-template-columns: 22px minmax(60px, 1fr) auto auto auto;
+	/* 4 columns: set# / reps / "reps" / commit. */
+	grid-template-columns: 22px minmax(60px, 1fr) auto auto;
 }
 
 .wp-set.is-logged {
@@ -1737,42 +1733,34 @@ pre.wp-embed-host,
 	background: transparent;
 }
 
-/* --- Workout: PR badges -------------------------------------------------- */
+/* --- Workout: rest day --------------------------------------------------- */
 
-.wp-pr-badges {
-	display: inline-flex;
-	align-items: center;
-	gap: 2px;
-	margin-left: 4px;
+.wp-rest-day {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 6px;
+	padding: 8px 4px 4px;
 }
 
-/* When a set hasn't earned any PR badges (the common case) the container
- * is empty. Remove it from the grid entirely so it doesn't contribute
- * line-height-derived height to the row — otherwise mobile shows a
- * visible blank strip on the trailing edge of every set. */
-.wp-pr-badges:empty {
-	display: none;
-}
-
-.wp-pr-badge {
+.wp-rest-day-icon {
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-	width: 18px;
-	height: 18px;
-	border-radius: 999px;
-	color: var(--text-on-accent, white);
-	background: var(--interactive-accent);
+	color: var(--text-muted);
 }
 
-.wp-pr-badge .svg-icon {
-	width: 12px;
-	height: 12px;
+.wp-rest-day-icon .svg-icon {
+	width: 20px;
+	height: 20px;
 }
 
-.wp-pr-badge--weight { background: var(--color-orange, #d99c4a); }
-.wp-pr-badge--e1rm { background: var(--color-purple, #8e6fc8); }
-.wp-pr-badge--reps { background: var(--color-green, #5fa463); }
+.wp-rest-day-copy {
+	color: var(--text-muted);
+	font-size: var(--font-ui-small, 12px);
+	line-height: 1.4;
+	max-width: 36em;
+}
 
 /* --- Workout: body measurements ------------------------------------------ */
 

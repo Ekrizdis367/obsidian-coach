@@ -89,6 +89,16 @@ export default class CoachPlugin extends Plugin {
 					else delete this.workoutCollapsed[path];
 					void this.persistData();
 				},
+				bumpTemplateWeight: async (templateName, exerciseName, newWeight) => {
+					if (!templateName) return false;
+					const template = this.settings.templates.find((t) => t.name === templateName);
+					if (!template) return false;
+					const exercise = template.exercises.find((e) => e.name === exerciseName);
+					if (!exercise) return false;
+					exercise.weight = newWeight;
+					await this.persistData();
+					return true;
+				},
 			},
 		);
 

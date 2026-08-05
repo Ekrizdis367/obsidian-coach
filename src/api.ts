@@ -12,13 +12,21 @@ import { formatIsoDate } from "./data/history-index";
  * All `get*ForDate` / `get*ForToday` helpers that emit a fenced code block
  * append a single trailing newline so the result drops cleanly into a
  * daily note alongside other plugins' card outputs without leaving an
- * editable empty line between them in Live Preview. They return an empty
- * string when there's nothing to show (e.g. a rest day for
- * `getWorkoutFor*`) so call sites can safely `?? ""` the result.
+ * editable empty line between them in Live Preview.
+ *
+ * Prefer `get*ForDate(tp.file.title)` (or another note-derived date) in
+ * daily-note templates so backfilled / ahead-of-time notes get the right
+ * schedule and `date:` stamp — `get*ForToday` always uses the wall clock.
  */
 export interface WorkoutPlannerApi {
 	getTemplateNameForDate(date?: Date | string): string | null;
 	getTemplateForDate(date?: Date | string): WorkoutTemplate | null;
+	/**
+	 * Returns a ` ```workout ``` ` block for the scheduled template, or a
+	 * rest-day card (body weight still prompted) when that weekday has no
+	 * template. Date args accept a `Date`, `YYYY-MM-DD`, or any string that
+	 * contains a `YYYY-MM-DD` (e.g. a daily-note title or path).
+	 */
 	getWorkoutForDate(date?: Date | string): string;
 	getWorkoutForToday(): string;
 	/**
@@ -64,15 +72,14 @@ export function createWorkoutApi(
 	// source — no empty line between them. In Live Preview an empty source
 	// line would otherwise render as an editable, full-line-height gap
 	// between cards; visual breathing room is left to CSS so Reading mode
-	// and Live Preview stay in sync. Returning empty string stays empty so
-	// callers can safely `?? ""` the result.
+	// and Live Preview stay in sync.
 	const withTrailingNewline = (block: string): string =>
 		block.length > 0 ? block + "\n" : "";
 
 	const getWorkoutForDate = (input?: Date | string): string => {
 		const date = toDate(input);
 		const template = getTemplateForDate(date);
-		if (!template) return "";
+		// Rest days still get a card so body weight can be logged.
 		return withTrailingNewline(
 			buildWorkoutBlockText(template, formatIsoDate(date)),
 		);
@@ -110,13 +117,16 @@ export function createWorkoutApi(
 function toDate(input?: Date | string): Date {
 	if (!input) return new Date();
 	if (input instanceof Date) return input;
-	const match = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(input.trim());
+	const trimmed = input.trim();
+	// Exact ISO date, or the first YYYY-MM-DD found in a title/path
+	// (daily notes like `2026-08-05` or `Noting/2026/August/2026-08-05`).
+	const match = /(\d{4})-(\d{1,2})-(\d{1,2})/.exec(trimmed);
 	if (match) {
 		const year = Number(match[1]);
 		const month = Number(match[2]) - 1;
 		const day = Number(match[3]);
 		return new Date(year, month, day);
 	}
-	const parsed = new Date(input);
+	const parsed = new Date(trimmed);
 	return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
 }

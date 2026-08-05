@@ -166,6 +166,12 @@ export interface BodyMeasurements {
 export interface WorkoutBlock {
 	template?: string;
 	date?: string;
+	/**
+	 * True when this block represents a scheduled rest day (no template for
+	 * the weekday). Rest-day cards still accept body weight / measurements
+	 * so tracking continues on off days.
+	 */
+	rest?: boolean;
 	bodyweight?: number;
 	measurements?: BodyMeasurements;
 	/** ISO timestamp when first set was logged. Auto-set on first log. */

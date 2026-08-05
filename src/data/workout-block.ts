@@ -53,6 +53,7 @@ function normalizeBlock(raw: unknown): WorkoutBlock {
 	const block: WorkoutBlock = { exercises, cardio };
 	if (typeof raw.template === "string") block.template = raw.template;
 	if (typeof raw.date === "string") block.date = raw.date;
+	if (raw.rest === true) block.rest = true;
 	const bw = typeof raw.bodyweight === "number" ? raw.bodyweight : Number(raw.bodyweight);
 	if (Number.isFinite(bw) && bw > 0) block.bodyweight = bw;
 	if (typeof raw.startedAt === "string" && raw.startedAt.trim().length > 0) {
@@ -152,6 +153,7 @@ export function serializeWorkoutBlock(block: WorkoutBlock): string {
 	const out: Record<string, unknown> = {};
 	if (block.template) out.template = block.template;
 	if (block.date) out.date = block.date;
+	if (block.rest === true) out.rest = true;
 	if (typeof block.bodyweight === "number" && block.bodyweight > 0) {
 		out.bodyweight = block.bodyweight;
 	}

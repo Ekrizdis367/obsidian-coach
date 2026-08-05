@@ -10,6 +10,7 @@ import type {
 } from "../types";
 import {
 	parseWorkoutBlock,
+	serializeWorkoutBlock,
 	updateWorkoutBlock,
 } from "../data/workout-block";
 import { HistoryIndex, formatIsoDate } from "../data/history-index";
@@ -23,6 +24,10 @@ import {
 } from "../utils/format";
 import { markEmbedWrapper } from "../utils/embed";
 import { RestTimerController } from "./rest-timer";
+import {
+	IncreaseWeightModal,
+	suggestNextWeight,
+} from "./increase-weight-modal";
 
 export interface WorkoutRendererDeps {
 	app: App;
@@ -35,19 +40,17 @@ export interface WorkoutRendererDeps {
 	restTimer: RestTimerController;
 	getWorkoutCollapsed: (filePath: string) => boolean;
 	setWorkoutCollapsed: (filePath: string, collapsed: boolean) => void;
+	/**
+	 * Persist a new planned weight on the matching template exercise (by
+	 * template name + exercise name). Returns true if a template entry was
+	 * updated. Always safe to call — no-ops when the block has no template.
+	 */
+	bumpTemplateWeight: (
+		templateName: string | undefined,
+		exerciseName: string,
+		newWeight: number,
+	) => Promise<boolean>;
 }
-
-interface PRBadgeKind {
-	icon: string;
-	label: string;
-	className: string;
-}
-
-const PR_BADGES: Record<"weight" | "e1rm" | "reps", PRBadgeKind> = {
-	weight: { icon: "trophy", label: "Heaviest set ever", className: "wp-pr-badge--weight" },
-	e1rm: { icon: "trending-up", label: "Best estimated 1RM", className: "wp-pr-badge--e1rm" },
-	reps: { icon: "star", label: "Most reps ever", className: "wp-pr-badge--reps" },
-};
 
 const MEASUREMENT_FIELDS: Array<{ key: keyof BodyMeasurements; label: string }> = [
 	{ key: "waist", label: "Waist" },
@@ -57,6 +60,57 @@ const MEASUREMENT_FIELDS: Array<{ key: keyof BodyMeasurements; label: string }> 
 	{ key: "thighs", label: "Thighs" },
 	{ key: "neck", label: "Neck" },
 ];
+
+/**
+ * Scroll positions remembered across vault writes. Completing a set updates
+ * the note, which re-runs the markdown post-processor and would otherwise
+ * jump the preview — especially on mobile. We snapshot before persist and
+ * restore on the subsequent render for the same file.
+ */
+const pendingScrollByPath = new Map<string, { top: number; left: number }>();
+
+function findScrollParent(el: HTMLElement): HTMLElement | null {
+	let cur: HTMLElement | null = el.parentElement;
+	while (cur) {
+		const style = window.getComputedStyle(cur);
+		const oy = style.overflowY;
+		if (
+			(oy === "auto" || oy === "scroll" || oy === "overlay")
+			&& cur.scrollHeight > cur.clientHeight + 1
+		) {
+			return cur;
+		}
+		cur = cur.parentElement;
+	}
+	return (document.scrollingElement as HTMLElement | null) ?? null;
+}
+
+function rememberScroll(el: HTMLElement, filePath: string): void {
+	const scroller = findScrollParent(el);
+	if (!scroller) return;
+	pendingScrollByPath.set(filePath, {
+		top: scroller.scrollTop,
+		left: scroller.scrollLeft,
+	});
+}
+
+function restoreScrollIfPending(el: HTMLElement, filePath: string): void {
+	const saved = pendingScrollByPath.get(filePath);
+	if (!saved) return;
+	const scroller = findScrollParent(el);
+	if (!scroller) return;
+	requestAnimationFrame(() => {
+		scroller.scrollTop = saved.top;
+		scroller.scrollLeft = saved.left;
+	});
+	// Keep the snapshot briefly so split panes / double processors for the
+	// same file can all restore before we drop it.
+	window.setTimeout(() => {
+		if (pendingScrollByPath.get(filePath) === saved) {
+			pendingScrollByPath.delete(filePath);
+		}
+	}, 500);
+}
 
 export function registerWorkoutBlockProcessor(
 	register: (
@@ -89,11 +143,22 @@ function renderWorkoutBlock(
 	markEmbedWrapper(container);
 	const file = deps.app.vault.getAbstractFileByPath(ctx.sourcePath);
 	const targetFile = file instanceof TFile ? file : null;
+	const filePath = targetFile?.path ?? null;
+
+	// Keep the source key in sync after each write so successive persists
+	// (before Obsidian reprocesses) can still locate the fence.
+	let sourceKey = source;
 
 	const persist = debounce(async (next: WorkoutBlock) => {
 		if (!targetFile) return;
+		rememberScroll(container, targetFile.path);
+		// Snapshot before the await so later UI mutations can't change what we
+		// think was written (sourceKey must match the fence contents on disk).
+		const toWrite = cloneBlock(next);
+		const writtenSource = serializeWorkoutBlock(toWrite).trimEnd();
 		try {
-			await updateWorkoutBlock(deps.app, targetFile, source, next);
+			await updateWorkoutBlock(deps.app, targetFile, sourceKey, toWrite);
+			sourceKey = writtenSource;
 		} catch (err) {
 			new Notice(`Failed to save workout: ${(err as Error).message}`);
 		}
@@ -105,22 +170,74 @@ function renderWorkoutBlock(
 	// the block YAML, so we persist it via the plugin data API keyed on the
 	// note path. Notes with multiple workout blocks share a single toggle;
 	// that's fine in practice since it's a rare layout.
-	const filePath = targetFile?.path ?? null;
 	const initialCollapsed = filePath ? deps.getWorkoutCollapsed(filePath) : false;
-	if (initialCollapsed) container.addClass("wp-workout--collapsed");
 
-	renderHeader(container, state, deps, persist, {
+	const rerender = () => {
+		const collapsed = container.hasClass("wp-workout--collapsed");
+		container.empty();
+		if (collapsed) container.addClass("wp-workout--collapsed");
+		renderInner(container, state, deps, persist, rerender, {
+			collapsed,
+			onToggle: () => {
+				const nowCollapsed = !container.hasClass("wp-workout--collapsed");
+				container.toggleClass("wp-workout--collapsed", nowCollapsed);
+				if (filePath) deps.setWorkoutCollapsed(filePath, nowCollapsed);
+			},
+			currentFilePath: targetFile?.path,
+		});
+	};
+
+	if (initialCollapsed) container.addClass("wp-workout--collapsed");
+	renderInner(container, state, deps, persist, rerender, {
 		collapsed: initialCollapsed,
 		onToggle: () => {
 			const nowCollapsed = !container.hasClass("wp-workout--collapsed");
 			container.toggleClass("wp-workout--collapsed", nowCollapsed);
 			if (filePath) deps.setWorkoutCollapsed(filePath, nowCollapsed);
 		},
+		currentFilePath: targetFile?.path,
+	});
+
+	if (filePath) restoreScrollIfPending(container, filePath);
+}
+
+interface RenderContext {
+	collapsed: boolean;
+	onToggle: () => void;
+	currentFilePath: string | undefined;
+}
+
+function renderInner(
+	container: HTMLElement,
+	state: WorkoutBlock,
+	deps: WorkoutRendererDeps,
+	persist: (next: WorkoutBlock) => void,
+	rerender: () => void,
+	ctx: RenderContext,
+): void {
+	if (state.rest === true) {
+		renderRestDay(container, state, deps, persist, {
+			collapsed: ctx.collapsed,
+			onToggle: ctx.onToggle,
+		});
+		return;
+	}
+
+	renderHeader(container, state, deps, persist, {
+		collapsed: ctx.collapsed,
+		onToggle: ctx.onToggle,
 	});
 
 	if (state.exercises.length > 0) {
 		const exercisesEl = container.createDiv({ cls: "wp-exercises" });
-		renderExerciseGroups(exercisesEl, state, deps, persist, targetFile?.path);
+		renderExerciseGroups(
+			exercisesEl,
+			state,
+			deps,
+			persist,
+			rerender,
+			ctx.currentFilePath,
+		);
 	}
 
 	if (state.cardio.length > 0) {
@@ -130,7 +247,16 @@ function renderWorkoutBlock(
 		for (let i = 0; i < state.cardio.length; i++) {
 			const cardio = state.cardio[i];
 			if (!cardio) continue;
-			renderCardio(cardioWrap, cardio, i, state, deps, persist, targetFile?.path);
+			renderCardio(
+				cardioWrap,
+				cardio,
+				i,
+				state,
+				deps,
+				persist,
+				rerender,
+				ctx.currentFilePath,
+			);
 		}
 	}
 
@@ -140,11 +266,91 @@ function renderWorkoutBlock(
 	}
 }
 
+function renderRestDay(
+	container: HTMLElement,
+	block: WorkoutBlock,
+	deps: WorkoutRendererDeps,
+	persist: (next: WorkoutBlock) => void,
+	collapse: CollapseControl,
+): void {
+	const header = container.createDiv({ cls: "wp-header" });
+	const headLeft = header.createDiv({ cls: "wp-header-left" });
+	const title = headLeft.createDiv({ cls: "wp-title" });
+	title.setText("Rest day");
+	if (block.date) {
+		const date = headLeft.createDiv({ cls: "wp-date" });
+		date.setText(block.date);
+	}
+	const summary = headLeft.createDiv({ cls: "wp-header-summary" });
+	summary.setText("Rest day");
+
+	const toggleBtn = header.createEl("button", {
+		cls: "wp-collapse-toggle",
+		attr: { "aria-label": collapse.collapsed ? "Expand workout" : "Collapse workout" },
+	});
+	setIcon(toggleBtn, "chevron-down");
+	toggleBtn.addEventListener("click", () => {
+		collapse.onToggle();
+		const nowCollapsed = container.hasClass("wp-workout--collapsed");
+		toggleBtn.setAttr("aria-label", nowCollapsed ? "Expand workout" : "Collapse workout");
+	});
+
+	const body = container.createDiv({ cls: "wp-rest-day" });
+	const icon = body.createDiv({ cls: "wp-rest-day-icon" });
+	setIcon(icon, "moon");
+	body.createDiv({
+		cls: "wp-rest-day-copy",
+		text: "No workout scheduled today. Recovery counts — log your body weight if you track it.",
+	});
+
+	renderBodyweightRow(container, block, deps, persist);
+	renderMeasurements(container, block, deps.getUnit(), persist);
+}
+
+function renderBodyweightRow(
+	container: HTMLElement,
+	block: WorkoutBlock,
+	deps: WorkoutRendererDeps,
+	persist: (next: WorkoutBlock) => void,
+): void {
+	const bwWrap = container.createDiv({ cls: "wp-bodyweight" });
+	bwWrap.createSpan({ cls: "wp-bodyweight-label", text: "Body weight" });
+	const bwInput = bwWrap.createEl("input", { cls: "wp-bodyweight-input" });
+	bwInput.type = "number";
+	bwInput.min = "0";
+	bwInput.step = "0.1";
+	bwInput.placeholder = "—";
+	if (typeof block.bodyweight === "number" && block.bodyweight > 0) {
+		bwInput.value = block.bodyweight.toString();
+	}
+	bwWrap.createSpan({ cls: "wp-bodyweight-unit", text: deps.getUnit() });
+
+	const onBwCommit = () => {
+		const raw = bwInput.value.trim();
+		if (raw === "") {
+			if (block.bodyweight !== undefined) {
+				delete block.bodyweight;
+				persist(block);
+			}
+			return;
+		}
+		const parsed = parseFloat(raw);
+		if (!Number.isFinite(parsed) || parsed <= 0) {
+			bwInput.value = block.bodyweight?.toString() ?? "";
+			return;
+		}
+		block.bodyweight = parsed;
+		persist(block);
+	};
+	bwInput.addEventListener("change", onBwCommit);
+}
+
 function renderExerciseGroups(
 	parent: HTMLElement,
 	state: WorkoutBlock,
 	deps: WorkoutRendererDeps,
 	persist: (next: WorkoutBlock) => void,
+	rerender: () => void,
 	currentFilePath: string | undefined,
 ): void {
 	let i = 0;
@@ -155,7 +361,7 @@ function renderExerciseGroups(
 			continue;
 		}
 		if (!exercise.group) {
-			renderExercise(parent, exercise, i, state, deps, persist, currentFilePath);
+			renderExercise(parent, exercise, i, state, deps, persist, rerender, currentFilePath);
 			i++;
 			continue;
 		}
@@ -176,7 +382,7 @@ function renderExerciseGroups(
 		for (const idx of groupIndices) {
 			const ex = state.exercises[idx];
 			if (!ex) continue;
-			renderExercise(wrap, ex, idx, state, deps, persist, currentFilePath);
+			renderExercise(wrap, ex, idx, state, deps, persist, rerender, currentFilePath);
 		}
 		i = j;
 	}
@@ -197,7 +403,7 @@ function renderHeader(
 	const header = container.createDiv({ cls: "wp-header" });
 	const headLeft = header.createDiv({ cls: "wp-header-left" });
 	const title = headLeft.createDiv({ cls: "wp-title" });
-	title.setText(block.template ?? "Workout");
+	title.setText(block.rest === true ? "Rest day" : (block.template ?? "Workout"));
 	if (block.date) {
 		const date = headLeft.createDiv({ cls: "wp-date" });
 		date.setText(block.date);
@@ -234,36 +440,7 @@ function renderHeader(
 	// squeezed into the header next to the collapse toggle. Keeps it
 	// quick to log (no dropdown to open) while giving the header room
 	// to breathe on narrow screens.
-	const bwWrap = container.createDiv({ cls: "wp-bodyweight" });
-	bwWrap.createSpan({ cls: "wp-bodyweight-label", text: "Body weight" });
-	const bwInput = bwWrap.createEl("input", { cls: "wp-bodyweight-input" });
-	bwInput.type = "number";
-	bwInput.min = "0";
-	bwInput.step = "0.1";
-	bwInput.placeholder = "—";
-	if (typeof block.bodyweight === "number" && block.bodyweight > 0) {
-		bwInput.value = block.bodyweight.toString();
-	}
-	bwWrap.createSpan({ cls: "wp-bodyweight-unit", text: deps.getUnit() });
-
-	const onBwCommit = () => {
-		const raw = bwInput.value.trim();
-		if (raw === "") {
-			if (block.bodyweight !== undefined) {
-				delete block.bodyweight;
-				persist(block);
-			}
-			return;
-		}
-		const parsed = parseFloat(raw);
-		if (!Number.isFinite(parsed) || parsed <= 0) {
-			bwInput.value = block.bodyweight?.toString() ?? "";
-			return;
-		}
-		block.bodyweight = parsed;
-		persist(block);
-	};
-	bwInput.addEventListener("change", onBwCommit);
+	renderBodyweightRow(container, block, deps, persist);
 
 	renderMeasurements(container, block, deps.getUnit(), persist);
 }
@@ -274,6 +451,7 @@ function renderHeader(
  * so users can tell what's inside without expanding.
  */
 function formatCollapsedSummary(block: WorkoutBlock): string {
+	if (block.rest === true) return "Rest day";
 	const parts: string[] = [];
 	if (block.exercises.length > 0) {
 		parts.push(`${block.exercises.length} exercise${block.exercises.length === 1 ? "" : "s"}`);
@@ -359,6 +537,7 @@ function renderExercise(
 	block: WorkoutBlock,
 	deps: WorkoutRendererDeps,
 	persist: (next: WorkoutBlock) => void,
+	rerender: () => void,
 	currentFilePath: string | undefined,
 ): void {
 	const wrap = parent.createDiv({ cls: "wp-exercise" });
@@ -393,9 +572,8 @@ function renderExercise(
 			block,
 			deps,
 			persist,
+			rerender,
 			tracksWeight,
-			currentFilePath,
-			lookupDate,
 		);
 	}
 
@@ -412,6 +590,7 @@ function renderExercise(
 				exercise.log.push(fallback);
 				exercise.target.sets = Math.max(exercise.target.sets, exercise.log.length);
 				persist(block);
+				rerender();
 			});
 		}
 
@@ -421,6 +600,7 @@ function renderExercise(
 			toggleBtn.addEventListener("click", () => {
 				exercise.tracksWeight = !tracksWeight;
 				persist(block);
+				rerender();
 			});
 		}
 
@@ -479,9 +659,8 @@ function renderSetRow(
 	block: WorkoutBlock,
 	deps: WorkoutRendererDeps,
 	persist: (next: WorkoutBlock) => void,
+	rerender: () => void,
 	tracksWeight: boolean,
-	currentFilePath: string | undefined,
-	sessionDate: string,
 ): void {
 	const row = parent.createDiv({ cls: "wp-set" });
 	if (!tracksWeight) row.addClass("wp-set--bodyweight");
@@ -531,11 +710,6 @@ function renderSetRow(
 	commitBtn.setAttr("aria-label", isLogged ? "Unlog set" : "Log set");
 	setIcon(commitBtn, isLogged ? "check-circle-2" : "circle");
 
-	const badges = row.createDiv({ cls: "wp-pr-badges" });
-	if (isLogged && logEntry) {
-		renderPRBadges(badges, exercise, rowIndex, logEntry, sessionDate, currentFilePath, deps);
-	}
-
 	if (isLogged) {
 		const onEdit = debounce(() => {
 			if (!exercise.log[rowIndex]) return;
@@ -557,6 +731,7 @@ function renderSetRow(
 			exercise.log.splice(rowIndex, 1);
 			recomputeWorkoutTimestamps(block);
 			persist(block);
+			rerender();
 		});
 	} else {
 		commitBtn.addEventListener("click", () => {
@@ -571,44 +746,16 @@ function renderSetRow(
 			exercise.log[rowIndex] = newSet;
 			stampWorkoutTimestamps(block);
 			persist(block);
+			rerender();
 			if (deps.getAutoStartRest()) {
 				const restSec = restSecForExercise(exercise, block, deps);
 				deps.restTimer.start(restSec, exercise.name);
 			}
+			maybePromptWeightIncrease(exercise, rowIndex, block, deps, persist, rerender);
 		});
 	}
 
 	void exerciseIndex;
-}
-
-function renderPRBadges(
-	parent: HTMLElement,
-	exercise: BlockExercise,
-	setIndex: number,
-	logEntry: SetLog,
-	sessionDate: string,
-	currentFilePath: string | undefined,
-	deps: WorkoutRendererDeps,
-): void {
-	const newPRs = deps.historyIndex.getNewPRsForSet(
-		exercise.name,
-		logEntry,
-		sessionDate,
-		currentFilePath,
-		{
-			setIndex,
-			isDropSet: exercise.dropSet === true,
-			isFailure: exercise.toFailure === true,
-		},
-	);
-	if (newPRs.length === 0) return;
-	for (const kind of newPRs) {
-		const meta = PR_BADGES[kind];
-		const badge = parent.createSpan({ cls: `wp-pr-badge ${meta.className}` });
-		badge.setAttribute("aria-label", `New PR: ${meta.label.toLowerCase()}`);
-		badge.setAttribute("title", `New PR: ${meta.label}`);
-		setIcon(badge, meta.icon);
-	}
 }
 
 function restSecForExercise(
@@ -671,6 +818,118 @@ function lastSetFallback(exercise: BlockExercise): SetLog {
 	return { reps: exercise.target.reps, weight: exercise.target.weight };
 }
 
+/**
+ * After logging a set, if the user just finished every planned set at (or
+ * above) target reps on a weighted exercise, offer to bump the planned
+ * weight for next time (template + this block's target).
+ */
+function maybePromptWeightIncrease(
+	exercise: BlockExercise,
+	rowIndex: number,
+	block: WorkoutBlock,
+	deps: WorkoutRendererDeps,
+	persist: (next: WorkoutBlock) => void,
+	rerender: () => void,
+): void {
+	if (!effectiveTracksWeight(exercise)) return;
+	if (exercise.target.sets <= 0) return;
+	// Only fire when the set that was just logged is the last planned set
+	// (not when logging extras beyond the plan, and not mid-exercise).
+	if (rowIndex !== exercise.target.sets - 1) return;
+	if (exercise.log.length < exercise.target.sets) return;
+	if (!exerciseHitAllPlannedSets(exercise)) return;
+
+	// Don't rewrite today's template from a backfilled historical session.
+	const today = formatIsoDate(new Date());
+	if (block.date && block.date !== today) return;
+
+	const workingWeight = workingSetWeight(exercise);
+	if (workingWeight <= 0) return;
+	// Only offer an increase when the working weight met or beat the plan —
+	// otherwise we'd suggest a downgrade dressed up as progression.
+	if (workingWeight < exercise.target.weight) return;
+
+	const unit = deps.getUnit();
+	const suggested = suggestNextWeight(workingWeight, unit);
+	const sets = exercise.target.sets;
+	const summary = exercise.toFailure
+		? `You finished all ${sets} sets of ${exercise.name}.`
+		: `You hit all ${sets} × ${exercise.target.reps} on ${exercise.name}.`;
+
+	new IncreaseWeightModal(
+		deps.app,
+		{
+			currentWeight: workingWeight,
+			suggestedWeight: suggested,
+			unit,
+			summary,
+		},
+		(result) => {
+			void applyWeightIncrease(exercise, block, deps, persist, rerender, result.newWeight);
+		},
+	).open();
+}
+
+/** True when every planned set is logged and meets the rep target. */
+function exerciseHitAllPlannedSets(exercise: BlockExercise): boolean {
+	const planned = exercise.target.sets;
+	if (exercise.log.length < planned) return false;
+	for (let i = 0; i < planned; i++) {
+		const set = exercise.log[i];
+		if (!set) return false;
+		// Gap-fill rows from clicking ahead have no loggedAt — don't treat
+		// them as completed work for progression prompts.
+		if (!set.loggedAt) return false;
+		if (exercise.toFailure) {
+			// Failure sets: any positive reps counts as completing the set.
+			if (set.reps <= 0) return false;
+		} else if (set.reps < exercise.target.reps) {
+			return false;
+		}
+	}
+	return true;
+}
+
+/** Weight used for progression — working set for drop-sets, else last logged. */
+function workingSetWeight(exercise: BlockExercise): number {
+	if (exercise.dropSet === true) {
+		const first = exercise.log[0];
+		if (first && first.weight > 0) return first.weight;
+		return exercise.target.weight;
+	}
+	for (let i = exercise.target.sets - 1; i >= 0; i--) {
+		const set = exercise.log[i];
+		if (set && set.weight > 0) return set.weight;
+	}
+	return exercise.target.weight;
+}
+
+async function applyWeightIncrease(
+	exercise: BlockExercise,
+	block: WorkoutBlock,
+	deps: WorkoutRendererDeps,
+	persist: (next: WorkoutBlock) => void,
+	rerender: () => void,
+	newWeight: number,
+): Promise<void> {
+	if (!Number.isFinite(newWeight) || newWeight < 0) return;
+	exercise.target.weight = newWeight;
+	persist(block);
+	rerender();
+	const updatedTemplate = await deps.bumpTemplateWeight(
+		block.template,
+		exercise.name,
+		newWeight,
+	);
+	const unit = deps.getUnit();
+	const label = formatWeight(newWeight, unit);
+	if (updatedTemplate) {
+		new Notice(`${exercise.name}: next time → ${label} (template updated)`);
+	} else {
+		new Notice(`${exercise.name}: next time → ${label}`);
+	}
+}
+
 function parseIntField(raw: string, fallback: number): number {
 	if (raw.trim() === "") return fallback;
 	const n = parseInt(raw, 10);
@@ -691,6 +950,7 @@ function cloneBlock(block: WorkoutBlock): WorkoutBlock {
 		exercises: block.exercises.map(cloneExercise),
 		cardio: block.cardio.map(cloneCardio),
 	};
+	if (block.rest === true) out.rest = true;
 	if (block.measurements) out.measurements = { ...block.measurements };
 	if (block.startedAt) out.startedAt = block.startedAt;
 	if (block.endedAt) out.endedAt = block.endedAt;
@@ -733,6 +993,7 @@ function renderCardio(
 	block: WorkoutBlock,
 	deps: WorkoutRendererDeps,
 	persist: (next: WorkoutBlock) => void,
+	rerender: () => void,
 	currentFilePath: string | undefined,
 ): void {
 	const wrap = parent.createDiv({ cls: "wp-exercise wp-cardio-item" });
@@ -754,7 +1015,7 @@ function renderCardio(
 	renderPreviousCardio(head, previous);
 
 	const setsEl = wrap.createDiv({ cls: "wp-sets" });
-	renderCardioRow(setsEl, cardio, cardioIndex, block, deps, persist);
+	renderCardioRow(setsEl, cardio, cardioIndex, block, deps, persist, rerender);
 }
 
 function formatCardioTarget(cardio: BlockCardio): string {
@@ -772,6 +1033,7 @@ function renderCardioRow(
 	block: WorkoutBlock,
 	_deps: WorkoutRendererDeps,
 	persist: (next: WorkoutBlock) => void,
+	rerender: () => void,
 ): void {
 	const row = parent.createDiv({ cls: "wp-set wp-cardio-row" });
 	const isLogged = cardio.log !== null;
@@ -856,11 +1118,13 @@ function renderCardioRow(
 		commitBtn.addEventListener("click", () => {
 			cardio.log = null;
 			persist(block);
+			rerender();
 		});
 	} else {
 		commitBtn.addEventListener("click", () => {
 			cardio.log = buildLog();
 			persist(block);
+			rerender();
 		});
 	}
 
