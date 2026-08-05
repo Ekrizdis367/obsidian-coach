@@ -1,4 +1,5 @@
 import type { BlockExercise, DistanceUnit, HistoryEntry, SetLog, WaterUnit, WeightUnit } from "../types";
+import { padNumber } from "./pad";
 
 export function formatWeight(value: number, unit: WeightUnit): string {
 	if (!Number.isFinite(value)) return `0 ${unit}`;
@@ -82,7 +83,7 @@ export function formatDuration(seconds: number): string {
 	const s = Math.max(0, Math.round(seconds));
 	const m = Math.floor(s / 60);
 	const r = s % 60;
-	return `${m}:${r.toString().padStart(2, "0")}`;
+	return `${m}:${padNumber(r, 2)}`;
 }
 
 export function formatMinutes(value: number): string {
@@ -133,6 +134,5 @@ export function formatPace(minutes: number, distance: number, unit: DistanceUnit
 	const paceMin = minutes / distance;
 	const wholeMin = Math.floor(paceMin);
 	const sec = Math.round((paceMin - wholeMin) * 60);
-	const ss = sec.toString().padStart(2, "0");
-	return `${wholeMin}:${ss}/${unit}`;
+	return `${wholeMin}:${padNumber(sec, 2)}/${unit}`;
 }

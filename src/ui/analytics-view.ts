@@ -41,6 +41,7 @@ import {
 	FITNESS_GOAL_SPECS,
 	recommendNutrition,
 } from "../utils/body-stats";
+import { padNumber } from "../utils/pad";
 
 export const ANALYTICS_VIEW_TYPE = "coach-analytics";
 
@@ -1139,9 +1140,9 @@ function startOfWeek(d: Date): Date {
 }
 
 function toIsoDate(d: Date): string {
-	const yyyy = d.getFullYear().toString().padStart(4, "0");
-	const mm = (d.getMonth() + 1).toString().padStart(2, "0");
-	const dd = d.getDate().toString().padStart(2, "0");
+	const yyyy = padNumber(d.getFullYear(), 4);
+	const mm = padNumber(d.getMonth() + 1, 2);
+	const dd = padNumber(d.getDate(), 2);
 	return `${yyyy}-${mm}-${dd}`;
 }
 

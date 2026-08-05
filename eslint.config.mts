@@ -31,6 +31,7 @@ export default tseslint.config(
 				projectService: {
 					allowDefaultProject: [
 						'eslint.config.js',
+						'eslint.config.mts',
 						'manifest.json'
 					]
 				},
@@ -47,6 +48,8 @@ export default tseslint.config(
 				enforceCamelCaseLower: true,
 				acronyms: ACRONYMS_EXCLUDING_REST,
 			}],
+			// Match community review expectations for popout-window safety.
+			"obsidianmd/prefer-active-doc": "error",
 		},
 	},
 	globalIgnores([
@@ -54,6 +57,7 @@ export default tseslint.config(
 		"dist",
 		"esbuild.config.mjs",
 		"eslint.config.js",
+		"eslint.config.mts",
 		"version-bump.mjs",
 		"versions.json",
 		"main.js",

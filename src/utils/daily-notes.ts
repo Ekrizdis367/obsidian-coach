@@ -1,4 +1,5 @@
 import { App, Notice, TFile, normalizePath } from "obsidian";
+import { padNumber } from "./pad";
 
 export interface DailyNotesConfig {
 	folder: string;
@@ -87,8 +88,8 @@ function formatWithMoment(format: string, date: Date): string {
 	}
 	// Fallback when moment isn't on window (shouldn't happen inside Obsidian).
 	const y = date.getFullYear();
-	const m = String(date.getMonth() + 1).padStart(2, "0");
-	const d = String(date.getDate()).padStart(2, "0");
+	const m = padNumber(date.getMonth() + 1, 2);
+	const d = padNumber(date.getDate(), 2);
 	return `${y}-${m}-${d}`;
 }
 

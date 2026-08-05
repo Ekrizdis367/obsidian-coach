@@ -1,4 +1,17 @@
-import { App, ButtonComponent, DropdownComponent, Modal, Notice, Plugin, PluginSettingTab, Setting, TextComponent, setIcon } from "obsidian";
+import {
+	App,
+	ButtonComponent,
+	DropdownComponent,
+	Modal,
+	Notice,
+	Plugin,
+	PluginSettingTab,
+	Setting,
+	SettingPage,
+	TextComponent,
+	setIcon,
+} from "obsidian";
+import type { SettingDefinitionItem, SettingGroupItem } from "obsidian";
 import type {
 	ActivityLevel,
 	BodyData,
@@ -7,6 +20,7 @@ import type {
 	ExerciseEquipment,
 	FitnessGoal,
 	Gender,
+	HeightUnit,
 	MealFavorite,
 	NutritionGoals,
 	TemplateCardio,
@@ -81,265 +95,392 @@ const EQUIPMENT_OPTIONS: ExerciseEquipment[] = [
 
 export class WorkoutSettingsTab extends PluginSettingTab {
 	private deps: SettingsTabDeps;
-	private exercisesExpanded = false;
-	private favoritesExpanded = false;
 
 	constructor(app: App, plugin: Plugin, deps: SettingsTabDeps) {
 		super(app, plugin);
 		this.deps = deps;
 	}
 
-	display(): void {
-		const { containerEl } = this;
-		containerEl.empty();
+	getSettingDefinitions(): SettingDefinitionItem[] {
 		const settings = this.deps.getSettings();
-
-		this.renderGeneral(containerEl, settings);
-		this.renderBodyData(containerEl, settings);
-		this.renderFitnessGoal(containerEl, settings);
-		this.renderRestTimer(containerEl, settings);
-		this.renderNutrition(containerEl, settings);
-		this.renderMealFavorites(containerEl, settings);
-		this.renderHydration(containerEl, settings);
-		this.renderExercises(containerEl, settings);
-		this.renderTemplates(containerEl, settings);
-		this.renderWeeklySchedule(containerEl, settings);
-	}
-
-	private renderBodyData(parent: HTMLElement, settings: SettingsLike): void {
-		new Setting(parent).setName("Body data").setHeading();
-		const desc = parent.createEl("p", { cls: "setting-item-description" });
-		desc.setText(
-			"Optional. Used by the analytics view to compute body mass index and recommended daily calories and macros. Stored in your vault only — nothing is sent anywhere. Not medical advice; consult a professional for anything health-related.",
-		);
-
 		const heightUnit = isHeightUnitFor(settings.weightUnit);
 		settings.bodyData.heightUnit = heightUnit;
 
-		new Setting(parent)
-			.setName(`Height (${heightUnit})`)
-			.setDesc("Used to compute body mass index and your basal metabolic rate.")
-			.addText((t) => {
-				t.inputEl.type = "number";
-				t.inputEl.min = "0";
-				t.inputEl.step = heightUnit === "in" ? "0.5" : "1";
-				t.setPlaceholder(heightUnit === "in" ? "70" : "175");
-				t.setValue(settings.bodyData.height !== null ? settings.bodyData.height.toString() : "");
-				t.onChange(async (value) => {
-					const trimmed = value.trim();
-					if (trimmed.length === 0) {
-						settings.bodyData.height = null;
-						await this.deps.save();
-						return;
-					}
-					const parsed = parseFloat(trimmed);
-					if (!Number.isFinite(parsed) || parsed <= 0) return;
-					settings.bodyData.height = Math.round(parsed * 10) / 10;
-					await this.deps.save();
-				});
-			});
-
-		new Setting(parent)
-			.setName("Age")
-			.setDesc("Used to compute your basal metabolic rate.")
-			.addText((t) => {
-				t.inputEl.type = "number";
-				t.inputEl.min = "0";
-				t.inputEl.step = "1";
-				t.setPlaceholder("30");
-				t.setValue(settings.bodyData.age !== null ? settings.bodyData.age.toString() : "");
-				t.onChange(async (value) => {
-					const trimmed = value.trim();
-					if (trimmed.length === 0) {
-						settings.bodyData.age = null;
-						await this.deps.save();
-						return;
-					}
-					const parsed = parseInt(trimmed, 10);
-					if (!Number.isFinite(parsed) || parsed <= 0) return;
-					settings.bodyData.age = parsed;
-					await this.deps.save();
-				});
-			});
-
-		new Setting(parent)
-			.setName("Gender")
-			.setDesc(
-				"Used in the standard sex-specific basal metabolic rate estimate. Pick whichever fits you best, or choose non-binary or prefer not to say to use the average of the two.",
-			)
-			.addDropdown((dd) => {
-				for (const value of GENDER_OPTIONS) dd.addOption(value, GENDER_LABELS[value]);
-				dd.setValue(settings.bodyData.gender);
-				dd.onChange(async (value) => {
-					settings.bodyData.gender = value as Gender;
-					await this.deps.save();
-				});
-			});
-
-		new Setting(parent)
-			.setName("Activity level")
-			.setDesc("Used to estimate your total daily energy expenditure.")
-			.addDropdown((dd) => {
-				for (const value of ACTIVITY_LEVEL_OPTIONS) dd.addOption(value, ACTIVITY_LEVEL_LABELS[value]);
-				dd.setValue(settings.bodyData.activityLevel);
-				dd.onChange(async (value) => {
-					settings.bodyData.activityLevel = value as ActivityLevel;
-					await this.deps.save();
-				});
-			});
-
-		new Setting(parent)
-			.setName(`Current weight (${settings.weightUnit})`)
-			.setDesc(
-				"Optional fallback used for body mass index and nutrition recommendations when you haven't logged a body weight in a workout yet. Logged weights from workout blocks always take precedence, so once you start logging this value is ignored.",
-			)
-			.addText((t) => {
-				t.inputEl.type = "number";
-				t.inputEl.min = "0";
-				t.inputEl.step = "0.1";
-				t.setPlaceholder(settings.weightUnit === "lb" ? "165" : "75");
-				t.setValue(settings.bodyData.weight !== null ? settings.bodyData.weight.toString() : "");
-				t.onChange(async (value) => {
-					const trimmed = value.trim();
-					if (trimmed.length === 0) {
-						settings.bodyData.weight = null;
-						await this.deps.save();
-						return;
-					}
-					const parsed = parseFloat(trimmed);
-					if (!Number.isFinite(parsed) || parsed <= 0) return;
-					settings.bodyData.weight = Math.round(parsed * 10) / 10;
-					await this.deps.save();
-				});
-			});
-	}
-
-	private renderFitnessGoal(parent: HTMLElement, settings: SettingsLike): void {
-		new Setting(parent).setName("Fitness goal").setHeading();
-		const desc = parent.createEl("p", { cls: "setting-item-description" });
-		desc.setText(
-			"Your overall training intent. Drives the recommended calories and macros under daily goals, and the training and cardio focus shown in the analytics view. Estimates only; not medical advice.",
-		);
-
-		let summaryWrap: HTMLElement | null = null;
-		const renderSummary = () => {
-			if (!summaryWrap) return;
-			summaryWrap.empty();
-			const spec = FITNESS_GOAL_SPECS[settings.fitnessGoal];
-			summaryWrap.createDiv({ cls: "wp-fitness-goal-summary", text: spec.summary });
-		};
-
-		new Setting(parent)
-			.setName("Goal")
-			.setDesc("Pick whichever best matches what you're working toward right now. You can switch any time.")
-			.addDropdown((dd) => {
-				for (const value of FITNESS_GOAL_OPTIONS) dd.addOption(value, FITNESS_GOAL_LABELS[value]);
-				dd.setValue(settings.fitnessGoal);
-				dd.onChange(async (value) => {
-					settings.fitnessGoal = value as FitnessGoal;
-					renderSummary();
-					await this.deps.save();
-				});
-			});
-
-		summaryWrap = parent.createDiv({ cls: "wp-fitness-goal-preview" });
-		renderSummary();
-	}
-
-	private renderWeeklySchedule(parent: HTMLElement, settings: SettingsLike): void {
-		new Setting(parent).setName("Weekly schedule").setHeading();
-		const desc = parent.createEl("p", { cls: "setting-item-description" });
-		desc.setText(
-			"Map each weekday to one of your templates. Off days can stay set to none. Used by the plugin API so a templater-powered daily note can inject the right workout automatically.",
-		);
-
-		const weekdayOrder: Weekday[] = [...WEEKDAY_KEYS];
-		for (const key of weekdayOrder) {
-			new Setting(parent)
-				.setName(WEEKDAY_LABELS[key])
-				.addDropdown((dd) => {
-					dd.addOption("", "None (off day)");
-					for (const template of settings.templates) {
-						dd.addOption(template.name, template.name);
-					}
-					const current = settings.weeklySchedule[key];
-					dd.setValue(current ?? "");
-					dd.onChange(async (value) => {
-						settings.weeklySchedule[key] = value === "" ? null : value;
-						await this.deps.save();
-					});
-				});
-		}
-	}
-
-	private renderNutrition(parent: HTMLElement, settings: SettingsLike): void {
-		new Setting(parent).setName("Nutrition").setHeading();
-
-		new Setting(parent)
-			.setName("Recipes folders")
-			.setDesc("One folder per line. Subfolders are included automatically, so listing `Cooking` covers `Cooking/Dinner`, `Cooking/Breakfast`, etc. Each recipe should have `calories`, `protein`, `carbs`, and `fats` in its frontmatter, per serving.")
-			.addTextArea((t) => {
-				t.setPlaceholder("Cooking");
-				t.setValue(settings.recipesFolders.join("\n"));
-				t.inputEl.rows = Math.max(3, settings.recipesFolders.length + 1);
-				t.inputEl.addClass("wp-folders-input");
-				t.onChange(async (value) => {
-					settings.recipesFolders = parseFoldersInput(value);
-					await this.deps.save();
-					this.deps.rebuildRecipes();
-				});
-			});
-
-		new Setting(parent)
-			.setName("Track fiber")
-			.setDesc(
-				"Show fiber as a 5th macro in the meal log, recipe parsing, and analytics. Off by default. Useful if you're tracking fiber for diabetic-friendly meal planning or general gut health.",
-			)
-			.addToggle((t) => {
-				t.setValue(settings.trackFiber);
-				t.onChange(async (value) => {
-					settings.trackFiber = value;
-					await this.deps.save();
-					this.display();
-				});
-			});
-
-		new Setting(parent)
-			.setName("Daily goals")
-			.setDesc("Targets shown as progress bars in the meal log block.");
-
-		const grid = parent.createDiv({ cls: "wp-goals-grid" });
-		const macroFields: { key: keyof NutritionGoals; label: string; unit: string }[] = [
-			{ key: "calories", label: "Calories", unit: "cal" },
-			{ key: "protein", label: "Protein", unit: "g" },
-			{ key: "carbs", label: "Carbs", unit: "g" },
-			{ key: "fats", label: "Fats", unit: "g" },
+		return [
+			...this.generalItems(settings),
+			{ type: "group", heading: "Body data", items: this.bodyDataItems(settings, heightUnit) },
+			{ type: "group", heading: "Fitness goal", items: this.fitnessGoalItems(settings) },
+			{ type: "group", heading: "Break timer", items: this.restTimerItems() },
+			{ type: "group", heading: "Nutrition", items: this.nutritionItems(settings) },
+			this.mealFavoritesPageDef(),
+			{ type: "group", heading: "Hydration", items: this.hydrationItems(settings) },
+			this.exerciseLibraryPageDef(),
+			this.workoutTemplatesPageDef(),
+			{ type: "group", heading: "Weekly schedule", items: this.weeklyScheduleItems(settings) },
 		];
-		if (settings.trackFiber) {
-			macroFields.push({ key: "fiber", label: "Fiber", unit: "g" });
-		}
-		const inputs = new Map<keyof NutritionGoals, HTMLInputElement>();
-		for (const macro of macroFields) {
-			const cell = grid.createDiv({ cls: "wp-goal-cell" });
-			cell.createEl("label", { text: `${macro.label} (${macro.unit})` });
-			const input = cell.createEl("input", { cls: "wp-goal-input" });
-			input.type = "number";
-			input.min = "0";
-			input.step = macro.key === "calories" ? "10" : "1";
-			input.value = settings.nutritionGoals[macro.key].toString();
-			input.addEventListener("change", () => {
-				const parsed = parseFloat(input.value);
-				if (!Number.isFinite(parsed) || parsed < 0) {
-					input.value = settings.nutritionGoals[macro.key].toString();
-					return;
-				}
-				settings.nutritionGoals[macro.key] = Math.round(parsed * 10) / 10;
-				void this.deps.save();
-			});
-			inputs.set(macro.key, input);
-		}
+	}
 
-		this.renderRecommendCalculator(parent, settings, inputs);
+	getControlValue(key: string): unknown {
+		const settings = this.deps.getSettings();
+		switch (key) {
+			case "weightUnit":
+				return settings.weightUnit;
+			case "showAddSetButton":
+				return settings.showAddSetButton;
+			case "bodyData.gender":
+				return settings.bodyData.gender;
+			case "bodyData.activityLevel":
+				return settings.bodyData.activityLevel;
+			case "fitnessGoal":
+				return settings.fitnessGoal;
+			case "restDurationSec":
+				return settings.restDurationSec;
+			case "supersetTransitionSec":
+				return settings.supersetTransitionSec;
+			case "autoStartRest":
+				return settings.autoStartRest;
+			case "playSoundOnRest":
+				return settings.playSoundOnRest;
+			case "trackFiber":
+				return settings.trackFiber;
+			default: {
+				const weekday = matchWeeklyScheduleKey(key);
+				if (weekday) return settings.weeklySchedule[weekday] ?? "";
+				return undefined;
+			}
+		}
+	}
+
+	async setControlValue(key: string, value: unknown): Promise<void> {
+		const settings = this.deps.getSettings();
+		switch (key) {
+			case "weightUnit":
+				settings.weightUnit = value === "lb" ? "lb" : "kg";
+				await this.deps.save();
+				// Height unit, weight labels, and hydration units throughout the
+				// tab all derive from this — rebuild definitions to refresh them.
+				this.update();
+				return;
+			case "showAddSetButton":
+				settings.showAddSetButton = value === true;
+				await this.deps.save();
+				return;
+			case "bodyData.gender":
+				settings.bodyData.gender = value as Gender;
+				await this.deps.save();
+				return;
+			case "bodyData.activityLevel":
+				settings.bodyData.activityLevel = value as ActivityLevel;
+				await this.deps.save();
+				return;
+			case "fitnessGoal":
+				settings.fitnessGoal = value as FitnessGoal;
+				await this.deps.save();
+				// The summary preview below the dropdown is only rebuilt on update().
+				this.update();
+				return;
+			case "restDurationSec":
+				settings.restDurationSec = clampRestDuration(Number(value));
+				await this.deps.save();
+				return;
+			case "supersetTransitionSec":
+				settings.supersetTransitionSec = clampSupersetTransition(Number(value));
+				await this.deps.save();
+				return;
+			case "autoStartRest":
+				settings.autoStartRest = value === true;
+				await this.deps.save();
+				return;
+			case "playSoundOnRest":
+				settings.playSoundOnRest = value === true;
+				await this.deps.save();
+				return;
+			case "trackFiber":
+				settings.trackFiber = value === true;
+				await this.deps.save();
+				// The daily goals grid gains/loses a fiber column.
+				this.update();
+				return;
+			case "recipesFolders":
+				settings.recipesFolders = parseFoldersInput(typeof value === "string" ? value : "");
+				await this.deps.save();
+				this.deps.rebuildRecipes();
+				return;
+			default: {
+				const weekday = matchWeeklyScheduleKey(key);
+				if (weekday) {
+					settings.weeklySchedule[weekday] = typeof value === "string" && value.length > 0 ? value : null;
+					await this.deps.save();
+				}
+			}
+		}
+	}
+
+	private generalItems(settings: SettingsLike): SettingDefinitionItem[] {
+		return [
+			{
+				name: "Weight unit",
+				desc: "Used when displaying and logging weights.",
+				control: {
+					type: "dropdown",
+					key: "weightUnit",
+					options: { kg: "Kilograms (kg)", lb: "Pounds (lb)" },
+				},
+			},
+			{
+				name: "Goal body weight",
+				desc: "Optional target weight in your selected unit. Shown in the body weight analytics section as a target line and gap-to-goal stat. Leave blank to disable.",
+				render: (setting) => {
+					setting.addText((t) => {
+						t.inputEl.type = "number";
+						t.inputEl.min = "0";
+						t.inputEl.step = "0.1";
+						t.setPlaceholder("75");
+						t.setValue(settings.goalWeight !== null ? settings.goalWeight.toString() : "");
+						t.onChange(async (value) => {
+							const trimmed = value.trim();
+							if (trimmed.length === 0) {
+								settings.goalWeight = null;
+								await this.deps.save();
+								return;
+							}
+							const parsed = parseFloat(trimmed);
+							if (!Number.isFinite(parsed) || parsed <= 0) return;
+							settings.goalWeight = Math.round(parsed * 10) / 10;
+							await this.deps.save();
+						});
+					});
+				},
+			},
+			{
+				name: "Show `Add set` button",
+				desc: "Lets you append extra sets to an exercise mid-workout. Off by default since most lifters stick to the planned set count.",
+				control: { type: "toggle", key: "showAddSetButton" },
+			},
+		];
+	}
+
+	private bodyDataItems(settings: SettingsLike, heightUnit: HeightUnit): SettingGroupItem[] {
+		return [
+			{
+				name: "",
+				desc: "Optional. Used by the analytics view to compute body mass index and recommended daily calories and macros. Stored in your vault only — nothing is sent anywhere. Not medical advice; consult a professional for anything health-related.",
+			},
+			{
+				name: `Height (${heightUnit})`,
+				desc: "Used to compute body mass index and your basal metabolic rate.",
+				render: (setting) => {
+					setting.addText((t) => {
+						t.inputEl.type = "number";
+						t.inputEl.min = "0";
+						t.inputEl.step = heightUnit === "in" ? "0.5" : "1";
+						t.setPlaceholder(heightUnit === "in" ? "70" : "175");
+						t.setValue(settings.bodyData.height !== null ? settings.bodyData.height.toString() : "");
+						t.onChange(async (value) => {
+							const trimmed = value.trim();
+							if (trimmed.length === 0) {
+								settings.bodyData.height = null;
+								await this.deps.save();
+								return;
+							}
+							const parsed = parseFloat(trimmed);
+							if (!Number.isFinite(parsed) || parsed <= 0) return;
+							settings.bodyData.height = Math.round(parsed * 10) / 10;
+							await this.deps.save();
+						});
+					});
+				},
+			},
+			{
+				name: "Age",
+				desc: "Used to compute your basal metabolic rate.",
+				render: (setting) => {
+					setting.addText((t) => {
+						t.inputEl.type = "number";
+						t.inputEl.min = "0";
+						t.inputEl.step = "1";
+						t.setPlaceholder("30");
+						t.setValue(settings.bodyData.age !== null ? settings.bodyData.age.toString() : "");
+						t.onChange(async (value) => {
+							const trimmed = value.trim();
+							if (trimmed.length === 0) {
+								settings.bodyData.age = null;
+								await this.deps.save();
+								return;
+							}
+							const parsed = parseInt(trimmed, 10);
+							if (!Number.isFinite(parsed) || parsed <= 0) return;
+							settings.bodyData.age = parsed;
+							await this.deps.save();
+						});
+					});
+				},
+			},
+			{
+				name: "Gender",
+				desc: "Used in the standard sex-specific basal metabolic rate estimate. Pick whichever fits you best, or choose non-binary or prefer not to say to use the average of the two.",
+				control: {
+					type: "dropdown",
+					key: "bodyData.gender",
+					options: recordFrom(GENDER_OPTIONS, GENDER_LABELS),
+				},
+			},
+			{
+				name: "Activity level",
+				desc: "Used to estimate your total daily energy expenditure.",
+				control: {
+					type: "dropdown",
+					key: "bodyData.activityLevel",
+					options: recordFrom(ACTIVITY_LEVEL_OPTIONS, ACTIVITY_LEVEL_LABELS),
+				},
+			},
+			{
+				name: `Current weight (${settings.weightUnit})`,
+				desc: "Optional fallback used for body mass index and nutrition recommendations when you haven't logged a body weight in a workout yet. Logged weights from workout blocks always take precedence, so once you start logging this value is ignored.",
+				render: (setting) => {
+					setting.addText((t) => {
+						t.inputEl.type = "number";
+						t.inputEl.min = "0";
+						t.inputEl.step = "0.1";
+						t.setPlaceholder(settings.weightUnit === "lb" ? "165" : "75");
+						t.setValue(settings.bodyData.weight !== null ? settings.bodyData.weight.toString() : "");
+						t.onChange(async (value) => {
+							const trimmed = value.trim();
+							if (trimmed.length === 0) {
+								settings.bodyData.weight = null;
+								await this.deps.save();
+								return;
+							}
+							const parsed = parseFloat(trimmed);
+							if (!Number.isFinite(parsed) || parsed <= 0) return;
+							settings.bodyData.weight = Math.round(parsed * 10) / 10;
+							await this.deps.save();
+						});
+					});
+				},
+			},
+		];
+	}
+
+	private fitnessGoalItems(settings: SettingsLike): SettingGroupItem[] {
+		return [
+			{
+				name: "",
+				desc: "Your overall training intent. Drives the recommended calories and macros under daily goals, and the training and cardio focus shown in the analytics view. Estimates only; not medical advice.",
+			},
+			{
+				name: "Goal",
+				desc: "Pick whichever best matches what you're working toward right now. You can switch any time.",
+				control: {
+					type: "dropdown",
+					key: "fitnessGoal",
+					options: recordFrom(FITNESS_GOAL_OPTIONS, FITNESS_GOAL_LABELS),
+				},
+			},
+			{
+				name: "",
+				searchable: false,
+				render: (setting, group) => {
+					setting.settingEl.remove();
+					const wrap = group.listEl.createDiv({ cls: "wp-fitness-goal-preview" });
+					const spec = FITNESS_GOAL_SPECS[settings.fitnessGoal];
+					wrap.createDiv({ cls: "wp-fitness-goal-summary", text: spec.summary });
+				},
+			},
+		];
+	}
+
+	private restTimerItems(): SettingGroupItem[] {
+		return [
+			{
+				name: "Default duration",
+				desc: "Length of the break timer in seconds (30 to 300).",
+				control: { type: "slider", key: "restDurationSec", min: 30, max: 300, step: 5 },
+			},
+			{
+				name: "Superset transition time",
+				desc: "Shorter pause between exercises within a superset (10–120 seconds). The full default duration still applies once you complete a round of all paired exercises.",
+				control: { type: "slider", key: "supersetTransitionSec", min: 10, max: 120, step: 5 },
+			},
+			{
+				name: "Auto-start after logging a set",
+				desc: "Start the break timer automatically when you mark a set complete.",
+				control: { type: "toggle", key: "autoStartRest" },
+			},
+			{
+				name: "Play sound when the break ends",
+				desc: "Plays a short tone if the page is in the foreground.",
+				control: { type: "toggle", key: "playSoundOnRest" },
+			},
+		];
+	}
+
+	private nutritionItems(settings: SettingsLike): SettingGroupItem[] {
+		return [
+			{
+				name: "Recipes folders",
+				desc: "One folder per line. Subfolders are included automatically, so listing `Cooking` covers `Cooking/Dinner`, `Cooking/Breakfast`, etc. Each recipe should have `calories`, `protein`, `carbs`, and `fats` in its frontmatter, per serving.",
+				render: (setting) => {
+					setting.addTextArea((t) => {
+						t.setPlaceholder("Cooking");
+						t.setValue(settings.recipesFolders.join("\n"));
+						t.inputEl.rows = Math.max(3, settings.recipesFolders.length + 1);
+						t.inputEl.addClass("wp-folders-input");
+						t.onChange(async (value) => {
+							await this.setControlValue("recipesFolders", value);
+						});
+					});
+				},
+			},
+			{
+				name: "Track fiber",
+				desc: "Show fiber as a 5th macro in the meal log, recipe parsing, and analytics. Off by default. Useful if you're tracking fiber for diabetic-friendly meal planning or general gut health.",
+				control: { type: "toggle", key: "trackFiber" },
+			},
+			{
+				name: "Daily goals",
+				desc: "Targets shown as progress bars in the meal log block.",
+			},
+			{
+				name: "",
+				searchable: false,
+				render: (setting, group) => {
+					setting.settingEl.remove();
+					const grid = group.listEl.createDiv({ cls: "wp-goals-grid" });
+					const macroFields: { key: keyof NutritionGoals; label: string; unit: string }[] = [
+						{ key: "calories", label: "Calories", unit: "cal" },
+						{ key: "protein", label: "Protein", unit: "g" },
+						{ key: "carbs", label: "Carbs", unit: "g" },
+						{ key: "fats", label: "Fats", unit: "g" },
+					];
+					if (settings.trackFiber) {
+						macroFields.push({ key: "fiber", label: "Fiber", unit: "g" });
+					}
+					const inputs = new Map<keyof NutritionGoals, HTMLInputElement>();
+					for (const macro of macroFields) {
+						const cell = grid.createDiv({ cls: "wp-goal-cell" });
+						cell.createEl("label", { text: `${macro.label} (${macro.unit})` });
+						const input = cell.createEl("input", { cls: "wp-goal-input" });
+						input.type = "number";
+						input.min = "0";
+						input.step = macro.key === "calories" ? "10" : "1";
+						input.value = settings.nutritionGoals[macro.key].toString();
+						input.addEventListener("change", () => {
+							const parsed = parseFloat(input.value);
+							if (!Number.isFinite(parsed) || parsed < 0) {
+								input.value = settings.nutritionGoals[macro.key].toString();
+								return;
+							}
+							settings.nutritionGoals[macro.key] = Math.round(parsed * 10) / 10;
+							void this.deps.save();
+						});
+						inputs.set(macro.key, input);
+					}
+
+					this.renderRecommendCalculator(group.listEl, settings, inputs);
+				},
+			},
+		];
 	}
 
 	private renderRecommendCalculator(
@@ -412,232 +553,207 @@ export class WorkoutSettingsTab extends PluginSettingTab {
 		calculateBtn.onClick(() => update());
 	}
 
-	private renderGeneral(parent: HTMLElement, settings: SettingsLike): void {
-		new Setting(parent)
-			.setName("Weight unit")
-			.setDesc("Used when displaying and logging weights.")
-			.addDropdown((dd) => {
-				dd.addOption("kg", "Kilograms (kg)");
-				dd.addOption("lb", "Pounds (lb)");
-				dd.setValue(settings.weightUnit);
-				dd.onChange(async (value) => {
-					settings.weightUnit = value === "lb" ? "lb" : "kg";
-					await this.deps.save();
-				});
-			});
-
-		new Setting(parent)
-			.setName("Goal body weight")
-			.setDesc("Optional target weight in your selected unit. Shown in the body weight analytics section as a target line and gap-to-goal stat. Leave blank to disable.")
-			.addText((t) => {
-				t.inputEl.type = "number";
-				t.inputEl.min = "0";
-				t.inputEl.step = "0.1";
-				t.setPlaceholder("75");
-				t.setValue(settings.goalWeight !== null ? settings.goalWeight.toString() : "");
-				t.onChange(async (value) => {
-					const trimmed = value.trim();
-					if (trimmed.length === 0) {
-						settings.goalWeight = null;
-						await this.deps.save();
-						return;
-					}
-					const parsed = parseFloat(trimmed);
-					if (!Number.isFinite(parsed) || parsed <= 0) {
-						return;
-					}
-					settings.goalWeight = Math.round(parsed * 10) / 10;
-					await this.deps.save();
-				});
-			});
-
-		new Setting(parent)
-			.setName("Show `Add set` button")
-			.setDesc("Lets you append extra sets to an exercise mid-workout. Off by default since most lifters stick to the planned set count.")
-			.addToggle((t) => {
-				t.setValue(settings.showAddSetButton);
-				t.onChange(async (value) => {
-					settings.showAddSetButton = value;
-					await this.deps.save();
-				});
-			});
-	}
-
-	private renderRestTimer(parent: HTMLElement, settings: SettingsLike): void {
-		new Setting(parent).setName("Break timer").setHeading();
-
-		new Setting(parent)
-			.setName("Default duration")
-			.setDesc("Length of the break timer in seconds (30 to 300).")
-			.addSlider((s) => {
-				s.setLimits(30, 300, 5);
-				s.setValue(settings.restDurationSec);
-				s.setDynamicTooltip();
-				s.onChange(async (value) => {
-					settings.restDurationSec = clampRestDuration(value);
-					await this.deps.save();
-				});
-			});
-
-		new Setting(parent)
-			.setName("Superset transition time")
-			.setDesc(
-				"Shorter pause between exercises within a superset (10–120 seconds). The full default duration still applies once you complete a round of all paired exercises.",
-			)
-			.addSlider((s) => {
-				s.setLimits(10, 120, 5);
-				s.setValue(settings.supersetTransitionSec);
-				s.setDynamicTooltip();
-				s.onChange(async (value) => {
-					settings.supersetTransitionSec = clampSupersetTransition(value);
-					await this.deps.save();
-				});
-			});
-
-		new Setting(parent)
-			.setName("Auto-start after logging a set")
-			.setDesc("Start the break timer automatically when you mark a set complete.")
-			.addToggle((t) => {
-				t.setValue(settings.autoStartRest);
-				t.onChange(async (value) => {
-					settings.autoStartRest = value;
-					await this.deps.save();
-				});
-			});
-
-		new Setting(parent)
-			.setName("Play sound when the break ends")
-			.setDesc("Plays a short tone if the page is in the foreground.")
-			.addToggle((t) => {
-				t.setValue(settings.playSoundOnRest);
-				t.onChange(async (value) => {
-					settings.playSoundOnRest = value;
-					await this.deps.save();
-				});
-			});
-	}
-
-	private renderHydration(parent: HTMLElement, settings: SettingsLike): void {
-		new Setting(parent).setName("Hydration").setHeading();
-		const desc = parent.createEl("p", { cls: "setting-item-description" });
+	private hydrationItems(settings: SettingsLike): SettingGroupItem[] {
 		const unit = waterUnitFor(settings.weightUnit);
-		desc.setText(
-			`Optional. Sets the daily target and the +/- step amount used by the water tracker (embedded in the meal log block, the standalone water log block, and the analytics view). Units follow your weight unit (${unit}). When left blank, sensible defaults are used (~2.5 L target, 250 ml step / 8 fl oz step).`,
-		);
-
-		const targetSetting = new Setting(parent)
-			.setName(`Daily target (${unit})`)
-			.setDesc("Leave blank to use the default. Units follow your weight unit.");
-
 		let targetInput: TextComponent | null = null;
-		targetSetting.addText((t) => {
-			targetInput = t;
-			t.inputEl.type = "number";
-			t.inputEl.min = "0";
-			t.inputEl.step = unit === "ml" ? "50" : "1";
-			t.setPlaceholder(unit === "ml" ? "2500" : "80");
-			t.setValue(settings.waterTarget !== null ? settings.waterTarget.toString() : "");
-			t.onChange(async (value) => {
-				const trimmed = value.trim();
-				if (trimmed.length === 0) {
-					settings.waterTarget = null;
-					await this.deps.save();
-					return;
-				}
-				const parsed = parseFloat(trimmed);
-				if (!Number.isFinite(parsed) || parsed < 0) return;
-				settings.waterTarget = Math.round(parsed);
-				await this.deps.save();
-			});
-		});
-
 		const stepDefault = unit === "ml" ? "250" : "8";
-		new Setting(parent)
-			.setName(`Step amount (${unit})`)
-			.setDesc(
-				`How much each tap on the water tracker's +/- buttons adds or removes. Leave blank to use the default (${stepDefault} ${unit}).`,
-			)
-			.addText((t) => {
-				t.inputEl.type = "number";
-				t.inputEl.min = "0";
-				t.inputEl.step = unit === "ml" ? "50" : "1";
-				t.setPlaceholder(stepDefault);
-				t.setValue(settings.waterStep !== null ? settings.waterStep.toString() : "");
-				t.onChange(async (value) => {
-					const trimmed = value.trim();
-					if (trimmed.length === 0) {
-						settings.waterStep = null;
-						await this.deps.save();
-						return;
-					}
-					const parsed = parseFloat(trimmed);
-					if (!Number.isFinite(parsed) || parsed <= 0) return;
-					settings.waterStep = Math.round(parsed * 100) / 100;
-					await this.deps.save();
-				});
-			});
 
-		const calcWrap = parent.createDiv({ cls: "wp-recommend-block" });
-		const status = calcWrap.createDiv({ cls: "wp-recommend-status" });
-		const buttons = calcWrap.createDiv({ cls: "wp-recommend-actions" });
-		const calcBtn = new ButtonComponent(buttons).setButtonText("Calculate from body weight");
-		const applyBtn = new ButtonComponent(buttons).setButtonText("Apply target").setCta();
-		applyBtn.setDisabled(true);
-		applyBtn.onClick(() => undefined);
+		return [
+			{
+				name: "",
+				desc: `Optional. Sets the daily target and the +/- step amount used by the water tracker (embedded in the meal log block, the standalone water log block, and the analytics view). Units follow your weight unit (${unit}). When left blank, sensible defaults are used (~2.5 L target, 250 ml step / 8 fl oz step).`,
+			},
+			{
+				name: `Daily target (${unit})`,
+				desc: "Leave blank to use the default. Units follow your weight unit.",
+				render: (setting) => {
+					setting.addText((t) => {
+						targetInput = t;
+						t.inputEl.type = "number";
+						t.inputEl.min = "0";
+						t.inputEl.step = unit === "ml" ? "50" : "1";
+						t.setPlaceholder(unit === "ml" ? "2500" : "80");
+						t.setValue(settings.waterTarget !== null ? settings.waterTarget.toString() : "");
+						t.onChange(async (value) => {
+							const trimmed = value.trim();
+							if (trimmed.length === 0) {
+								settings.waterTarget = null;
+								await this.deps.save();
+								return;
+							}
+							const parsed = parseFloat(trimmed);
+							if (!Number.isFinite(parsed) || parsed < 0) return;
+							settings.waterTarget = Math.round(parsed);
+							await this.deps.save();
+						});
+					});
+				},
+			},
+			{
+				name: `Step amount (${unit})`,
+				desc: `How much each tap on the water tracker's +/- buttons adds or removes. Leave blank to use the default (${stepDefault} ${unit}).`,
+				render: (setting) => {
+					setting.addText((t) => {
+						t.inputEl.type = "number";
+						t.inputEl.min = "0";
+						t.inputEl.step = unit === "ml" ? "50" : "1";
+						t.setPlaceholder(stepDefault);
+						t.setValue(settings.waterStep !== null ? settings.waterStep.toString() : "");
+						t.onChange(async (value) => {
+							const trimmed = value.trim();
+							if (trimmed.length === 0) {
+								settings.waterStep = null;
+								await this.deps.save();
+								return;
+							}
+							const parsed = parseFloat(trimmed);
+							if (!Number.isFinite(parsed) || parsed <= 0) return;
+							settings.waterStep = Math.round(parsed * 100) / 100;
+							await this.deps.save();
+						});
+					});
+				},
+			},
+			{
+				name: "",
+				searchable: false,
+				render: (setting, group) => {
+					setting.settingEl.remove();
+					const calcWrap = group.listEl.createDiv({ cls: "wp-recommend-block" });
+					const status = calcWrap.createDiv({ cls: "wp-recommend-status" });
+					const buttons = calcWrap.createDiv({ cls: "wp-recommend-actions" });
+					const calcBtn = new ButtonComponent(buttons).setButtonText("Calculate from body weight");
+					const applyBtn = new ButtonComponent(buttons).setButtonText("Apply target").setCta();
+					applyBtn.setDisabled(true);
+					applyBtn.onClick(() => undefined);
 
-		calcBtn.onClick(() => {
-			status.empty();
-			const effective = this.deps.getEffectiveWeight();
-			if (!effective) {
-				status.createDiv({
-					cls: "wp-recommend-empty",
-					text: "Need a current weight (logged in a workout block or entered in body data above) to suggest a target.",
-				});
-				applyBtn.setDisabled(true);
-				applyBtn.onClick(() => undefined);
-				return;
-			}
-			const recommended = recommendWater(effective.weight, settings.weightUnit);
-			const sourceText = effective.source === "logged" && effective.loggedDate
-				? `Using your latest logged weight: ${effective.weight} ${settings.weightUnit} (${effective.loggedDate}).`
-				: `Using your settings weight: ${effective.weight} ${settings.weightUnit}.`;
-			status.createDiv({ cls: "wp-recommend-source", text: sourceText });
-			status.createDiv({
-				cls: "wp-recommend-intro",
-				text: `Suggested daily target: ${formatWater(recommended, unit)}. Based on the ~33 ml/kg (or ~0.5 fl oz/lb) guideline.`,
-			});
-			status.createDiv({
-				cls: "wp-recommend-disclaimer",
-				text: "Estimates only — not medical advice. Adjust for climate, activity, and personal needs.",
-			});
-			applyBtn.setDisabled(false);
-			applyBtn.onClick(async () => {
-				settings.waterTarget = recommended;
-				if (targetInput) targetInput.setValue(recommended.toString());
-				await this.deps.save();
-				new Notice("Water target updated.");
-			});
-		});
+					calcBtn.onClick(() => {
+						status.empty();
+						const effective = this.deps.getEffectiveWeight();
+						if (!effective) {
+							status.createDiv({
+								cls: "wp-recommend-empty",
+								text: "Need a current weight (logged in a workout block or entered in body data above) to suggest a target.",
+							});
+							applyBtn.setDisabled(true);
+							applyBtn.onClick(() => undefined);
+							return;
+						}
+						const recommended = recommendWater(effective.weight, settings.weightUnit);
+						const sourceText = effective.source === "logged" && effective.loggedDate
+							? `Using your latest logged weight: ${effective.weight} ${settings.weightUnit} (${effective.loggedDate}).`
+							: `Using your settings weight: ${effective.weight} ${settings.weightUnit}.`;
+						status.createDiv({ cls: "wp-recommend-source", text: sourceText });
+						status.createDiv({
+							cls: "wp-recommend-intro",
+							text: `Suggested daily target: ${formatWater(recommended, unit)}. Based on the ~33 ml/kg (or ~0.5 fl oz/lb) guideline.`,
+						});
+						status.createDiv({
+							cls: "wp-recommend-disclaimer",
+							text: "Estimates only — not medical advice. Adjust for climate, activity, and personal needs.",
+						});
+						applyBtn.setDisabled(false);
+						applyBtn.onClick(async () => {
+							settings.waterTarget = recommended;
+							if (targetInput) targetInput.setValue(recommended.toString());
+							await this.deps.save();
+							new Notice("Water target updated.");
+						});
+					});
+				},
+			},
+		];
 	}
 
-	private renderMealFavorites(parent: HTMLElement, settings: SettingsLike): void {
-		new Setting(parent).setName("Meal favorites").setHeading();
-		const desc = parent.createEl("p", { cls: "setting-item-description" });
-		desc.setText(
-			"Saved shortcuts shown in the favorite picker on every meals block. Click the star on any meal entry to save it, or add a custom one here.",
-		);
+	private weeklyScheduleItems(settings: SettingsLike): SettingGroupItem[] {
+		const items: SettingGroupItem[] = [
+			{
+				name: "",
+				desc: "Map each weekday to one of your templates. Off days can stay set to none. Used by the plugin API so a templater-powered daily note can inject the right workout automatically.",
+			},
+		];
 
-		const details = parent.createEl("details", { cls: "wp-collapsible" });
-		if (this.favoritesExpanded) details.setAttr("open", "");
-		details.addEventListener("toggle", () => {
-			this.favoritesExpanded = details.open;
+		const options: Record<string, string> = { "": "None (off day)" };
+		for (const template of settings.templates) {
+			options[template.name] = template.name;
+		}
+
+		for (const key of WEEKDAY_KEYS) {
+			items.push({
+				name: WEEKDAY_LABELS[key],
+				control: {
+					type: "dropdown",
+					key: `weeklySchedule.${key}`,
+					options,
+				},
+			});
+		}
+
+		return items;
+	}
+
+	private mealFavoritesPageDef(): SettingDefinitionItem {
+		return {
+			type: "page",
+			name: "Meal favorites",
+			desc: "Saved shortcuts shown in the favorite picker on every meals block. Click the star on any meal entry to save it, or add a custom one here.",
+			displayValue: () => {
+				const count = this.deps.getSettings().mealFavorites.length;
+				return count === 0 ? "None yet" : `${count}`;
+			},
+			page: () => new MealFavoritesPage(this.app, this.deps, this),
+		};
+	}
+
+	private exerciseLibraryPageDef(): SettingDefinitionItem {
+		return {
+			type: "page",
+			name: "Exercise library",
+			desc: "Add your own exercises or remove ones you don't use. Built-in entries can be deleted but will be restored if you reset the plugin.",
+			displayValue: () => `${this.deps.getSettings().exercises.length}`,
+			page: () => new ExerciseLibraryPage(this.app, this.deps, this),
+		};
+	}
+
+	private workoutTemplatesPageDef(): SettingDefinitionItem {
+		return {
+			type: "page",
+			name: "Workout templates",
+			desc: "Templates appear when you run the `Insert workout` command. Each template lists exercises with target sets, reps, and weight.",
+			displayValue: () => {
+				const count = this.deps.getSettings().templates.length;
+				return count === 0 ? "None yet" : `${count}`;
+			},
+			page: () => new WorkoutTemplatesPage(this.app, this.deps, this),
+		};
+	}
+}
+
+/**
+ * Meal favorites list, moved out of the main tab into its own navigable page
+ * now that the list no longer needs a `<details>` collapsible wrapper.
+ */
+class MealFavoritesPage extends SettingPage {
+	constructor(
+		private app: App,
+		private deps: SettingsTabDeps,
+		private tab: WorkoutSettingsTab,
+	) {
+		super();
+		this.title = "Meal favorites";
+	}
+
+	display(): void {
+		const { containerEl } = this;
+		containerEl.empty();
+		const settings = this.deps.getSettings();
+
+		containerEl.createEl("p", {
+			cls: "setting-item-description",
+			text: "Saved shortcuts shown in the favorite picker on every meals block. Click the star on any meal entry to save it, or add a custom one here.",
 		});
 
-		const total = settings.mealFavorites.length;
-		const summary = details.createEl("summary", { cls: "wp-collapsible-summary" });
-		summary.setText(total === 0 ? "Favorites (none yet)" : `Favorites (${total})`);
-
-		const list = details.createDiv({ cls: "wp-settings-list" });
+		const list = containerEl.createDiv({ cls: "wp-settings-list" });
 
 		const sorted = [...settings.mealFavorites].sort((a, b) => a.name.localeCompare(b.name));
 		for (const fav of sorted) {
@@ -676,18 +792,20 @@ export class WorkoutSettingsTab extends PluginSettingTab {
 						target.servings = updated.servings;
 						if (updated.nutrition) target.nutrition = updated.nutrition;
 						await this.deps.save();
+						this.tab.update();
 						this.display();
 					},
 				).open();
 			});
-			new ButtonComponent(actions).setButtonText("Delete").setWarning().onClick(async () => {
+			new ButtonComponent(actions).setButtonText("Delete").setDestructive().onClick(async () => {
 				settings.mealFavorites = settings.mealFavorites.filter((f) => f.id !== fav.id);
 				await this.deps.save();
+				this.tab.update();
 				this.display();
 			});
 		}
 
-		new Setting(details).addButton((b) =>
+		new Setting(containerEl).addButton((b) =>
 			b.setButtonText("Add favorite").setCta().onClick(() => {
 				new FavoriteEditModal(
 					this.app,
@@ -703,29 +821,37 @@ export class WorkoutSettingsTab extends PluginSettingTab {
 						if (created.nutrition) next.nutrition = created.nutrition;
 						settings.mealFavorites.push(next);
 						await this.deps.save();
+						this.tab.update();
 						this.display();
 					},
 				).open();
 			}),
 		);
 	}
+}
 
-	private renderExercises(parent: HTMLElement, settings: SettingsLike): void {
-		new Setting(parent).setName("Exercise library").setHeading();
-		const desc = parent.createEl("p", { cls: "setting-item-description" });
-		desc.setText("Add your own exercises or remove ones you don't use. Built-in entries can be deleted but will be restored if you reset the plugin.");
+/** Exercise library list, moved out of the main tab into its own navigable page. */
+class ExerciseLibraryPage extends SettingPage {
+	constructor(
+		private app: App,
+		private deps: SettingsTabDeps,
+		private tab: WorkoutSettingsTab,
+	) {
+		super();
+		this.title = "Exercise library";
+	}
 
-		const details = parent.createEl("details", { cls: "wp-collapsible" });
-		if (this.exercisesExpanded) details.setAttr("open", "");
-		details.addEventListener("toggle", () => {
-			this.exercisesExpanded = details.open;
+	display(): void {
+		const { containerEl } = this;
+		containerEl.empty();
+		const settings = this.deps.getSettings();
+
+		containerEl.createEl("p", {
+			cls: "setting-item-description",
+			text: "Add your own exercises or remove ones you don't use. Built-in entries can be deleted but will be restored if you reset the plugin.",
 		});
 
-		const summary = details.createEl("summary", { cls: "wp-collapsible-summary" });
-		const total = settings.exercises.length;
-		summary.setText(`Exercises (${total})`);
-
-		const list = details.createDiv({ cls: "wp-settings-list" });
+		const list = containerEl.createDiv({ cls: "wp-settings-list" });
 
 		const sorted = [...settings.exercises].sort((a, b) => a.name.localeCompare(b.name));
 		for (const exercise of sorted) {
@@ -744,17 +870,19 @@ export class WorkoutSettingsTab extends PluginSettingTab {
 					target.category = updated.category;
 					target.equipment = updated.equipment;
 					await this.deps.save();
+					this.tab.update();
 					this.display();
 				}).open();
 			});
-			new ButtonComponent(actions).setButtonText("Delete").setWarning().onClick(async () => {
+			new ButtonComponent(actions).setButtonText("Delete").setDestructive().onClick(async () => {
 				settings.exercises = settings.exercises.filter((e) => e.id !== exercise.id);
 				await this.deps.save();
+				this.tab.update();
 				this.display();
 			});
 		}
 
-		new Setting(details)
+		new Setting(containerEl)
 			.addButton((b) => b.setButtonText("Add exercise").setCta().onClick(() => {
 				const blank: Exercise = {
 					id: generateId("ex"),
@@ -770,17 +898,35 @@ export class WorkoutSettingsTab extends PluginSettingTab {
 					}
 					settings.exercises.push({ ...blank, ...created, id: blank.id, custom: true });
 					await this.deps.save();
+					this.tab.update();
 					this.display();
 				}).open();
 			}));
 	}
+}
 
-	private renderTemplates(parent: HTMLElement, settings: SettingsLike): void {
-		new Setting(parent).setName("Workout templates").setHeading();
-		const desc = parent.createEl("p", { cls: "setting-item-description" });
-		desc.setText("Templates appear when you run the `Insert workout` command. Each template lists exercises with target sets, reps, and weight.");
+/** Workout templates list, moved out of the main tab into its own navigable page. */
+class WorkoutTemplatesPage extends SettingPage {
+	constructor(
+		private app: App,
+		private deps: SettingsTabDeps,
+		private tab: WorkoutSettingsTab,
+	) {
+		super();
+		this.title = "Workout templates";
+	}
 
-		const list = parent.createDiv({ cls: "wp-settings-list" });
+	display(): void {
+		const { containerEl } = this;
+		containerEl.empty();
+		const settings = this.deps.getSettings();
+
+		containerEl.createEl("p", {
+			cls: "setting-item-description",
+			text: "Templates appear when you run the `Insert workout` command. Each template lists exercises with target sets, reps, and weight.",
+		});
+
+		const list = containerEl.createDiv({ cls: "wp-settings-list" });
 
 		for (const template of settings.templates) {
 			const row = list.createDiv({ cls: "wp-settings-row" });
@@ -798,17 +944,19 @@ export class WorkoutSettingsTab extends PluginSettingTab {
 					if (idx === -1) return;
 					settings.templates[idx] = updated;
 					await this.deps.save();
+					this.tab.update();
 					this.display();
 				}).open();
 			});
-			new ButtonComponent(actions).setButtonText("Delete").setWarning().onClick(async () => {
+			new ButtonComponent(actions).setButtonText("Delete").setDestructive().onClick(async () => {
 				settings.templates = settings.templates.filter((t) => t.id !== template.id);
 				await this.deps.save();
+				this.tab.update();
 				this.display();
 			});
 		}
 
-		new Setting(parent).addButton((b) => b.setButtonText("Add template").setCta().onClick(() => {
+		new Setting(containerEl).addButton((b) => b.setButtonText("Add template").setCta().onClick(() => {
 			const blank: WorkoutTemplate = { id: generateId("tpl"), name: "", exercises: [], cardio: [] };
 			new TemplateEditorModal(this.app, blank, settings.exercises, async (created) => {
 				if (created.name.trim().length === 0) {
@@ -817,6 +965,7 @@ export class WorkoutSettingsTab extends PluginSettingTab {
 				}
 				settings.templates.push(created);
 				await this.deps.save();
+				this.tab.update();
 				this.display();
 			}).open();
 		}));
@@ -1196,5 +1345,18 @@ function parseFoldersInput(value: string): string[] {
 		seen.add(cleaned);
 		out.push(cleaned);
 	}
+	return out;
+}
+
+function matchWeeklyScheduleKey(key: string): Weekday | null {
+	const match = /^weeklySchedule\.(.+)$/.exec(key);
+	if (!match) return null;
+	const day = match[1];
+	return (WEEKDAY_KEYS as readonly string[]).includes(day ?? "") ? (day as Weekday) : null;
+}
+
+function recordFrom<T extends string>(values: readonly T[], labels: Record<T, string>): Record<string, string> {
+	const out: Record<string, string> = {};
+	for (const v of values) out[v] = labels[v];
 	return out;
 }

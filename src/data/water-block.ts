@@ -1,5 +1,6 @@
-import { App, parseYaml, stringifyYaml, TFile } from "obsidian";
+import { App, TFile } from "obsidian";
 import type { WaterBlock } from "../types";
+import { parseYamlUnknown, stringifyYamlValue } from "../utils/yaml";
 
 const FENCE_RE = /^[ \t]*(`{3,}|~{3,})\s*water\s*$/;
 
@@ -9,7 +10,7 @@ export function parseWaterBlock(source: string): WaterBlock {
 
 	let raw: unknown;
 	try {
-		raw = parseYaml(source);
+		raw = parseYamlUnknown(source);
 	} catch (err) {
 		throw new Error(`Could not parse water block: ${(err as Error).message}`);
 	}
@@ -33,7 +34,7 @@ export function serializeWaterBlock(block: WaterBlock): string {
 	if (typeof block.target === "number" && block.target > 0) {
 		out.target = Math.round(block.target);
 	}
-	return stringifyYaml(out);
+	return stringifyYamlValue(out);
 }
 
 export interface WaterBlockLocation {
@@ -62,13 +63,12 @@ export function findWaterBlock(
 		let endLine = -1;
 		for (let j = i + 1; j < lines.length; j++) {
 			const candidate = lines[j];
-			if (typeof candidate !== "string") continue;
-			if (closeRe.test(candidate)) {
+			if (typeof candidate === "string" && closeRe.test(candidate)) {
 				endLine = j;
 				break;
 			}
 		}
-		if (endLine === -1) continue;
+		if (endLine < 0) continue;
 
 		const inner = lines.slice(i + 1, endLine).join("\n");
 		if (inner.trim() === wantedKey) {

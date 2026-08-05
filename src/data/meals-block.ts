@@ -1,5 +1,6 @@
-import { App, parseYaml, stringifyYaml, TFile } from "obsidian";
+import { App, TFile } from "obsidian";
 import type { MealEntry, MealsBlock, NutritionTotals } from "../types";
+import { parseYamlUnknown, stringifyYamlValue } from "../utils/yaml";
 
 const FENCE_RE = /^[ \t]*(`{3,}|~{3,})\s*meals\s*$/;
 const WIKILINK_RE = /^\s*\[\[([^\]|]+)(?:\|[^\]]*)?\]\]\s*$/;
@@ -10,7 +11,7 @@ export function parseMealsBlock(source: string): MealsBlock {
 
 	let raw: unknown;
 	try {
-		raw = parseYaml(source);
+		raw = parseYamlUnknown(source);
 	} catch (err) {
 		throw new Error(`Could not parse meals block: ${(err as Error).message}`);
 	}
@@ -125,7 +126,7 @@ export function serializeMealsBlock(block: MealsBlock): string {
 	if (typeof block.water === "number" && block.water > 0) {
 		out.water = Math.max(0, Math.round(block.water));
 	}
-	return stringifyYaml(out);
+	return stringifyYamlValue(out);
 }
 
 export interface MealsBlockLocation {

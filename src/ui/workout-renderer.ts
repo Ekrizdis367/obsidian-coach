@@ -82,7 +82,7 @@ function findScrollParent(el: HTMLElement): HTMLElement | null {
 		}
 		cur = cur.parentElement;
 	}
-	return (document.scrollingElement as HTMLElement | null) ?? null;
+	return (activeDocument.scrollingElement as HTMLElement | null) ?? null;
 }
 
 function rememberScroll(el: HTMLElement, filePath: string): void {
@@ -99,7 +99,7 @@ function restoreScrollIfPending(el: HTMLElement, filePath: string): void {
 	if (!saved) return;
 	const scroller = findScrollParent(el);
 	if (!scroller) return;
-	requestAnimationFrame(() => {
+	window.requestAnimationFrame(() => {
 		scroller.scrollTop = saved.top;
 		scroller.scrollLeft = saved.left;
 	});

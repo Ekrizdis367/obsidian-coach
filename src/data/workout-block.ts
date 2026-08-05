@@ -1,4 +1,4 @@
-import { App, parseYaml, stringifyYaml, TFile } from "obsidian";
+import { App, TFile } from "obsidian";
 import type {
 	BlockCardio,
 	BlockExercise,
@@ -9,6 +9,7 @@ import type {
 	SetLog,
 	WorkoutBlock,
 } from "../types";
+import { parseYamlUnknown, stringifyYamlValue } from "../utils/yaml";
 
 const FENCE_RE = /^[ \t]*(`{3,}|~{3,})\s*workout\s*$/;
 
@@ -29,7 +30,7 @@ export function parseWorkoutBlock(source: string): WorkoutBlock {
 
 	let raw: unknown;
 	try {
-		raw = parseYaml(source);
+		raw = parseYamlUnknown(source);
 	} catch (err) {
 		throw new Error(`Could not parse workout block: ${(err as Error).message}`);
 	}
@@ -212,7 +213,7 @@ export function serializeWorkoutBlock(block: WorkoutBlock): string {
 			return entry;
 		});
 	}
-	return stringifyYaml(out);
+	return stringifyYamlValue(out);
 }
 
 export interface WorkoutBlockLocation {
