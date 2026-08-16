@@ -1132,15 +1132,23 @@ class TemplateEditorModal extends Modal {
 		}
 		if (item.dropSet) badges.createSpan({ cls: "wp-template-badge wp-template-badge--ds", text: "DS" });
 		if (item.toFailure) badges.createSpan({ cls: "wp-template-badge wp-template-badge--f", text: "F" });
+		if (item.timed) badges.createSpan({ cls: "wp-template-badge wp-template-badge--timed", text: "T" });
 
 		const inputs = main.createDiv({ cls: "wp-template-exercise-inputs" });
 		const tracksWeight = item.tracksWeight !== false;
+		const timed = item.timed === true;
 
 		this.numberInput(inputs, "Sets", item.sets, (v) => { item.sets = v; });
 		// To-failure exercises have no minimum reps target — the renderer
 		// shows literal "2F" everywhere — so the reps input is hidden.
+		// Timed holds use the same field as seconds.
 		if (!item.toFailure) {
-			this.numberInput(inputs, "Reps", item.reps, (v) => { item.reps = v; });
+			this.numberInput(
+				inputs,
+				timed ? "Sec" : "Reps",
+				item.reps,
+				(v) => { item.reps = v; },
+			);
 		}
 		if (tracksWeight) {
 			this.numberInput(inputs, "Weight", item.weight, (v) => { item.weight = v; }, true);
@@ -1171,11 +1179,28 @@ class TemplateEditorModal extends Modal {
 		if (!prev) linkBtn.setDisabled(true);
 		if (item.group) linkBtn.buttonEl.addClass("wp-template-toggle--active");
 
+		const timedBtn = new ButtonComponent(actions)
+			.setIcon("timer")
+			.setTooltip(timed ? "Timed on — sets use seconds" : "Mark as timed (holds)")
+			.onClick(() => {
+				item.timed = !timed;
+				if (item.timed) {
+					// Holds don't use drop-set / to-failure semantics.
+					delete item.dropSet;
+					delete item.toFailure;
+					// Sensible default hold when coming from a rep target.
+					if (item.reps <= 0 || item.reps > 120) item.reps = 45;
+				}
+				this.render();
+			});
+		if (timed) timedBtn.buttonEl.addClass("wp-template-toggle--active");
+
 		const dsBtn = new ButtonComponent(actions)
 			.setIcon("trending-down")
 			.setTooltip(item.dropSet ? "Drop set on — sets 2..N show DS" : "Mark as drop set")
 			.onClick(() => {
 				item.dropSet = !item.dropSet;
+				if (item.dropSet) delete item.timed;
 				this.render();
 			});
 		if (item.dropSet) dsBtn.buttonEl.addClass("wp-template-toggle--active");
@@ -1187,7 +1212,10 @@ class TemplateEditorModal extends Modal {
 				item.toFailure = !item.toFailure;
 				// Failure exercises have no rep target — clear it so we
 				// don't leak a stale value into PR / display logic.
-				if (item.toFailure) item.reps = 0;
+				if (item.toFailure) {
+					item.reps = 0;
+					delete item.timed;
+				}
 				this.render();
 			});
 		if (item.toFailure) fBtn.buttonEl.addClass("wp-template-toggle--active");

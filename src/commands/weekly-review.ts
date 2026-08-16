@@ -9,6 +9,7 @@ import { formatIsoDate, type HistoryIndex } from "../data/history-index";
 import type { RecipeIndex } from "../data/recipe-index";
 import { resolveMeal, sumTotals, formatGrams, formatCalories, EMPTY_TOTALS } from "../utils/nutrition";
 import {
+	formatHoldSeconds,
 	formatMinutes,
 	formatWater,
 	formatWeight,
@@ -297,6 +298,9 @@ function formatPRLine(pr: ReturnType<HistoryIndex["getPRsForExercise"]>[number])
 		case "volume":
 			return `${name}: highest session volume — ${pr.value} (${pr.date})`;
 		case "duration":
+			if (pr.durationUnit === "sec") {
+				return `${name}: longest hold — ${formatHoldSeconds(pr.value)} (${pr.date})`;
+			}
 			return `${name}: longest cardio — ${formatMinutes(pr.value)} (${pr.date})`;
 		case "distance":
 			return `${name}: farthest cardio — ${pr.value} km/mi (${pr.date})`;

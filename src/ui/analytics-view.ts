@@ -19,6 +19,7 @@ import { FITNESS_GOAL_LABELS, WEEKDAY_KEYS } from "../settings";
 import {
 	bestE1RM,
 	formatDistance,
+	formatHoldSeconds,
 	formatMinutes,
 	formatPace,
 	formatSetsSummary,
@@ -594,7 +595,8 @@ export class AnalyticsView extends ItemView {
 		const allSets: SetLog[] = entries.flatMap((e) => e.sets);
 		const recent30 = entries.filter((e) => isWithinDays(e.date, 30));
 		const recent30Sets = recent30.flatMap((e) => e.sets);
-		const isBodyweight = allSets.length > 0 && allSets.every((s) => s.weight === 0);
+		const isTimed = entries.length > 0 && entries.every((e) => e.timed === true);
+		const isBodyweight = !isTimed && allSets.length > 0 && allSets.every((s) => s.weight === 0);
 
 		// For weighted aggregates (volume, e1RM) drop sets only contribute
 		// their first (heavy) set — drops 2..N have an unknown reduced load.
@@ -604,7 +606,11 @@ export class AnalyticsView extends ItemView {
 		stat(summary, "Sessions", sessionCount.toString());
 		stat(summary, "Sessions (30d)", recent30.length.toString());
 
-		if (isBodyweight) {
+		if (isTimed) {
+			stat(summary, "Hold time (all-time)", formatHoldSeconds(totalReps(allSets)));
+			stat(summary, "Hold time (30d)", formatHoldSeconds(totalReps(recent30Sets)));
+			stat(summary, "Best hold", formatHoldSeconds(maxReps(allSets)));
+		} else if (isBodyweight) {
 			stat(summary, "Reps (all-time)", totalReps(allSets).toString());
 			stat(summary, "Reps (30d)", totalReps(recent30Sets).toString());
 			stat(summary, "Best set", `${maxReps(allSets)} reps`);
@@ -620,12 +626,17 @@ export class AnalyticsView extends ItemView {
 		entries: Extract<HistoryEntry, { kind: "strength" }>[],
 	): void {
 		const allSets = entries.flatMap((e) => e.sets);
-		const isBodyweight = allSets.length > 0 && allSets.every((s) => s.weight === 0);
+		const isTimed = entries.length > 0 && entries.every((e) => e.timed === true);
+		const isBodyweight = !isTimed && allSets.length > 0 && allSets.every((s) => s.weight === 0);
 		const wrap = parent.createDiv({ cls: "wp-analytics-chart" });
 		wrap.createEl("h4", {
-			text: isBodyweight ? "Weekly reps (last 12 weeks)" : "Weekly volume (last 12 weeks)",
+			text: isTimed
+				? "Weekly hold time (last 12 weeks)"
+				: isBodyweight
+					? "Weekly reps (last 12 weeks)"
+					: "Weekly volume (last 12 weeks)",
 		});
-		const valueFn = isBodyweight
+		const valueFn = isTimed || isBodyweight
 			? (e: Extract<HistoryEntry, { kind: "strength" }>) => totalReps(e.sets)
 			: (e: Extract<HistoryEntry, { kind: "strength" }>) => totalVolume(weightedSetsForEntry(e));
 		const points = weeklyAggregate(entries, 12, valueFn);
@@ -643,7 +654,8 @@ export class AnalyticsView extends ItemView {
 	): void {
 		const unit = this.deps.getUnit();
 		const allSets = entries.flatMap((e) => e.sets);
-		const isBodyweight = allSets.length > 0 && allSets.every((s) => s.weight === 0);
+		const isTimed = entries.length > 0 && entries.every((e) => e.timed === true);
+		const isBodyweight = !isTimed && allSets.length > 0 && allSets.every((s) => s.weight === 0);
 		const wrap = parent.createDiv({ cls: "wp-analytics-history" });
 		wrap.createEl("h4", { text: "Recent sessions" });
 		const list = wrap.createEl("ul", { cls: "wp-analytics-history-list" });
@@ -651,10 +663,23 @@ export class AnalyticsView extends ItemView {
 		for (const entry of recent) {
 			const item = list.createEl("li");
 			const date = item.createSpan({ cls: "wp-history-date", text: entry.date });
-			const summaryText = ` · ${formatSetsSummary(entry.sets, unit, !isBodyweight)}`;
+			const entryTimed = entry.timed === true || isTimed;
+			const tracksWeight = entry.sets.some((s) => s.weight > 0);
+			const summaryText = ` · ${formatSetsSummary(
+				entry.sets,
+				unit,
+				tracksWeight,
+				entryTimed,
+			)}`;
 			const summary = item.createSpan({ cls: "wp-history-summary", text: summaryText });
 			void date; void summary;
-			if (!isBodyweight) {
+			if (entryTimed) {
+				const holdSpan = item.createSpan({
+					cls: "wp-history-volume",
+					text: ` · ${formatHoldSeconds(totalReps(entry.sets))}`,
+				});
+				void holdSpan;
+			} else if (!isBodyweight) {
 				const volSpan = item.createSpan({
 					cls: "wp-history-volume",
 					text: ` · ${formatWeight(totalVolume(weightedSetsForEntry(entry)), unit)}`,
@@ -1423,6 +1448,7 @@ function formatPRValue(pr: PRRecord, unit: WeightUnit): string {
 		case "volume":
 			return `${formatBodyweight(pr.value)} ${unit}`;
 		case "duration":
+			if (pr.durationUnit === "sec") return formatHoldSeconds(pr.value);
 			return formatMinutes(pr.value);
 		case "distance":
 			return `${pr.value}`;

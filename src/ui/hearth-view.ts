@@ -2,8 +2,8 @@ import { ItemView, WorkspaceLeaf, setIcon } from "obsidian";
 import type { NutritionGoals, NutritionTotals, WeightUnit } from "../types";
 import { HistoryIndex, formatIsoDate } from "../data/history-index";
 import { RecipeIndex } from "../data/recipe-index";
-import { formatCalories, formatGrams, resolveMeal, sumTotals, EMPTY_TOTALS } from "../utils/nutrition";
-import { formatWater, waterUnitFor } from "../utils/format";
+import { resolveMeal, sumTotals, EMPTY_TOTALS } from "../utils/nutrition";
+import { waterUnitFor } from "../utils/format";
 import { createTodayDailyNote, findTodayDailyNote } from "../utils/daily-notes";
 import { resolveWaterTarget } from "./water-renderer";
 
@@ -88,24 +88,10 @@ export class HearthView extends ItemView {
 		const today = formatIsoDate(new Date());
 		const dailyNote = findTodayDailyNote(this.app);
 
-		const header = root.createDiv({ cls: "wp-hearth-header" });
-		const titleRow = header.createDiv({ cls: "wp-hearth-title-row" });
-		const icon = titleRow.createSpan({ cls: "wp-hearth-icon" });
-		setIcon(icon, "flame");
-		titleRow.createSpan({ cls: "wp-hearth-title", text: "Today" });
-		header.createDiv({ cls: "wp-hearth-date", text: today });
-
 		if (!dailyNote) {
 			this.renderMissingNote(root);
 			return;
 		}
-
-		header.createEl("button", {
-			cls: "wp-hearth-open",
-			text: "Open note",
-		}).addEventListener("click", () => {
-			void this.app.workspace.getLeaf(false).openFile(dailyNote);
-		});
 
 		const { totals, water } = this.collectToday(today);
 		this.renderMacros(root, totals);
@@ -187,19 +173,23 @@ export class HearthView extends ItemView {
 			const goal = Math.max(0, goals[macro.key]);
 			const ratio = goal > 0 ? Math.min(value / goal, 1) : 0;
 			const over = goal > 0 && value > goal;
+			const pct = goal > 0 ? Math.round((value / goal) * 100) : 0;
 
 			const cell = wrap.createDiv({ cls: `wp-macro ${macro.className}` });
 			const head = cell.createDiv({ cls: "wp-macro-head" });
 			head.createSpan({ cls: "wp-macro-label", text: macro.label });
-			const valueText = macro.key === "calories"
-				? `${formatCalories(value)} / ${formatCalories(goal)}`
-				: `${formatGrams(value)} / ${formatGrams(goal)}`;
-			head.createSpan({ cls: "wp-macro-value", text: valueText });
+			head.createSpan({
+				cls: "wp-macro-pct",
+				text: over ? `${pct}%` : `${Math.min(pct, 100)}%`,
+			});
 
 			const bar = cell.createDiv({ cls: "wp-macro-bar" });
 			const fill = bar.createDiv({ cls: "wp-macro-bar-fill" });
 			fill.style.width = `${Math.round(ratio * 100)}%`;
-			if (over) fill.addClass("wp-macro-bar-fill--over");
+			if (over) {
+				fill.addClass("wp-macro-bar-fill--over");
+				cell.addClass("wp-macro--over");
+			}
 		}
 	}
 
@@ -210,14 +200,16 @@ export class HearthView extends ItemView {
 		const done = target > 0 && amount >= target;
 
 		const cell = parent.createDiv({ cls: "wp-hearth-water" });
+		if (done) cell.addClass("wp-hearth-water--done");
 		const head = cell.createDiv({ cls: "wp-hearth-water-head" });
 		const label = head.createSpan({ cls: "wp-hearth-water-label" });
 		const icon = label.createSpan({ cls: "wp-water-icon" });
 		setIcon(icon, "droplets");
 		label.createSpan({ text: "Water" });
+		const pct = target > 0 ? Math.round((amount / target) * 100) : 0;
 		head.createSpan({
-			cls: "wp-hearth-water-value",
-			text: `${formatWater(amount, unit)} / ${formatWater(target, unit)}`,
+			cls: "wp-hearth-water-pct",
+			text: `${pct}%`,
 		});
 
 		const bar = cell.createDiv({ cls: "wp-water-bar" });

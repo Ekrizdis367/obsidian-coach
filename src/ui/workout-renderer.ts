@@ -17,6 +17,7 @@ import { HistoryIndex, formatIsoDate } from "../data/history-index";
 import {
 	effectiveTracksWeight,
 	formatDistance,
+	formatHoldSeconds,
 	formatMinutes,
 	formatPace,
 	formatSetsSummary,
@@ -543,6 +544,7 @@ function renderExercise(
 	const wrap = parent.createDiv({ cls: "wp-exercise" });
 	if (exercise.group) wrap.addClass("wp-exercise--superset");
 	const tracksWeight = effectiveTracksWeight(exercise);
+	const timed = exercise.timed === true;
 
 	const head = wrap.createDiv({ cls: "wp-exercise-head" });
 	const nameEl = head.createDiv({ cls: "wp-exercise-name" });
@@ -558,10 +560,11 @@ function renderExercise(
 		currentFilePath,
 		"strength",
 	);
-	renderPreviousStrength(head, previous, deps.getUnit(), tracksWeight);
+	renderPreviousStrength(head, previous, deps.getUnit(), tracksWeight, timed);
 
 	const setsEl = wrap.createDiv({ cls: "wp-sets" });
 	if (!tracksWeight) setsEl.addClass("wp-sets--bodyweight");
+	if (timed) setsEl.addClass("wp-sets--timed");
 	const totalRows = Math.max(exercise.target.sets, exercise.log.length);
 	for (let i = 0; i < totalRows; i++) {
 		renderSetRow(
@@ -623,13 +626,17 @@ function renderPreviousStrength(
 	previous: HistoryEntry | null,
 	unit: WeightUnit,
 	tracksWeight: boolean,
+	timed: boolean,
 ): void {
 	const prev = parent.createDiv({ cls: "wp-prev" });
 	if (!previous || previous.kind !== "strength") {
 		prev.setText("Last: —");
 		return;
 	}
-	prev.setText(`Last (${previous.date}): ${formatSetsSummary(previous.sets, unit, tracksWeight)}`);
+	const prevTimed = previous.timed === true || timed;
+	prev.setText(
+		`Last (${previous.date}): ${formatSetsSummary(previous.sets, unit, tracksWeight, prevTimed)}`,
+	);
 }
 
 function renderPreviousCardio(
@@ -664,6 +671,8 @@ function renderSetRow(
 ): void {
 	const row = parent.createDiv({ cls: "wp-set" });
 	if (!tracksWeight) row.addClass("wp-set--bodyweight");
+	const timed = exercise.timed === true;
+	if (timed) row.addClass("wp-set--timed");
 	const isLogged = rowIndex < exercise.log.length;
 	const logEntry: SetLog | null = isLogged ? (exercise.log[rowIndex] ?? null) : null;
 	row.toggleClass("is-logged", isLogged);
@@ -683,7 +692,11 @@ function renderSetRow(
 	repsInput.min = "0";
 	// "2F" is shorthand for "to failure" — the digit is just part of the label,
 	// not a target rep count (failure sets have no minimum).
-	repsInput.placeholder = exercise.toFailure ? "2F" : exercise.target.reps.toString();
+	repsInput.placeholder = exercise.toFailure
+		? "2F"
+		: timed
+			? formatHoldSeconds(exercise.target.reps).replace(/s$/, "")
+			: exercise.target.reps.toString();
 	if (logEntry) repsInput.value = logEntry.reps.toString();
 
 	let weightInput: HTMLInputElement | null = null;
@@ -702,7 +715,10 @@ function renderSetRow(
 		const unit = row.createSpan({ cls: "wp-set-unit", text: deps.getUnit() });
 		void unit;
 	} else {
-		const repsUnit = row.createSpan({ cls: "wp-set-unit", text: "reps" });
+		const repsUnit = row.createSpan({
+			cls: "wp-set-unit",
+			text: timed ? "sec" : "reps",
+		});
 		void repsUnit;
 	}
 
@@ -802,6 +818,11 @@ function recomputeWorkoutTimestamps(block: WorkoutBlock): void {
 
 function formatTarget(exercise: BlockExercise, unit: WeightUnit, tracksWeight: boolean): string {
 	const t = exercise.target;
+	if (exercise.timed === true) {
+		const hold = formatHoldSeconds(t.reps);
+		if (!tracksWeight) return `${t.sets} × ${hold}`;
+		return `${t.sets} × ${hold} @ ${formatWeight(t.weight, unit)}`;
+	}
 	// "2F" is the literal label for a to-failure target — no minimum reps,
 	// the digit is just part of the shorthand for "to failure".
 	const repsLabel = exercise.toFailure ? "2F" : t.reps.toString();
@@ -854,7 +875,9 @@ function maybePromptWeightIncrease(
 	const sets = exercise.target.sets;
 	const summary = exercise.toFailure
 		? `You finished all ${sets} sets of ${exercise.name}.`
-		: `You hit all ${sets} × ${exercise.target.reps} on ${exercise.name}.`;
+		: exercise.timed === true
+			? `You hit all ${sets} × ${formatHoldSeconds(exercise.target.reps)} on ${exercise.name}.`
+			: `You hit all ${sets} × ${exercise.target.reps} on ${exercise.name}.`;
 
 	new IncreaseWeightModal(
 		deps.app,
@@ -971,6 +994,7 @@ function cloneExercise(ex: BlockExercise): BlockExercise {
 	if (ex.group) out.group = ex.group;
 	if (ex.dropSet === true) out.dropSet = true;
 	if (ex.toFailure === true) out.toFailure = true;
+	if (ex.timed === true) out.timed = true;
 	return out;
 }
 

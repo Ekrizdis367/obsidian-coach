@@ -454,6 +454,7 @@ export class HistoryIndex {
 				};
 				if (ex.dropSet === true) entry.dropSet = true;
 				if (ex.toFailure === true) entry.toFailure = true;
+				if (ex.timed === true) entry.timed = true;
 				const list = this.byExercise.get(key) ?? [];
 				list.push(entry);
 				this.byExercise.set(key, list);
@@ -521,15 +522,29 @@ function computePRs(exerciseName: string, entries: HistoryEntry[]): PRRecord[] {
 		let bestE1rm: { value: number; weight: number; reps: number; date: string; filePath: string } | null = null;
 		let bestReps: { value: number; weight: number; date: string; filePath: string } | null = null;
 		let bestVolume: { value: number; date: string; filePath: string } | null = null;
+		let bestHold: { value: number; weight: number; date: string; filePath: string } | null = null;
 		for (const e of strength) {
 			// Failure entries are excluded from every strength PR — see
 			// types.HistoryEntry.toFailure. The rep target is undefined
 			// for failure sets so PR comparisons would be noisy.
 			if (e.toFailure === true) continue;
+			const timed = e.timed === true;
 			for (let i = 0; i < e.sets.length; i++) {
 				const s = e.sets[i];
 				if (!s) continue;
 				const countsForWeight = e.dropSet !== true || i === 0;
+				if (timed) {
+					// Holds: longest time is the meaningful PR. Skip e1RM /
+					// volume (reps×weight is nonsense for seconds). Weight
+					// still counts for weighted-vest holds.
+					if (countsForWeight && s.weight > 0 && (bestWeight === null || s.weight > bestWeight.value)) {
+						bestWeight = { value: s.weight, reps: s.reps, date: e.date, filePath: e.filePath };
+					}
+					if (s.reps > 0 && (bestHold === null || s.reps > bestHold.value)) {
+						bestHold = { value: s.reps, weight: s.weight, date: e.date, filePath: e.filePath };
+					}
+					continue;
+				}
 				if (countsForWeight) {
 					if (s.weight > 0 && (bestWeight === null || s.weight > bestWeight.value)) {
 						bestWeight = { value: s.weight, reps: s.reps, date: e.date, filePath: e.filePath };
@@ -543,6 +558,7 @@ function computePRs(exerciseName: string, entries: HistoryEntry[]): PRRecord[] {
 					bestReps = { value: s.reps, weight: s.weight, date: e.date, filePath: e.filePath };
 				}
 			}
+			if (timed) continue;
 			// Drop sets only count set 1 toward total volume (we don't know
 			// the actual weight on later drops).
 			const volSets = e.dropSet === true ? e.sets.slice(0, 1) : e.sets;
@@ -589,6 +605,17 @@ function computePRs(exerciseName: string, entries: HistoryEntry[]): PRRecord[] {
 				value: Math.round(bestVolume.value * 10) / 10,
 				date: bestVolume.date,
 				filePath: bestVolume.filePath,
+			});
+		}
+		if (bestHold) {
+			out.push({
+				exerciseName: display,
+				kind: "duration",
+				value: bestHold.value,
+				weight: bestHold.weight,
+				durationUnit: "sec",
+				date: bestHold.date,
+				filePath: bestHold.filePath,
 			});
 		}
 	}

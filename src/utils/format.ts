@@ -19,9 +19,26 @@ export function effectiveTracksWeight(exercise: BlockExercise): boolean {
 	return !exercise.log.every((s) => s.weight === 0);
 }
 
-export function formatSetsSummary(sets: SetLog[], unit: WeightUnit, tracksWeight = true): string {
+export function formatSetsSummary(
+	sets: SetLog[],
+	unit: WeightUnit,
+	tracksWeight = true,
+	timed = false,
+): string {
 	if (sets.length === 0) return "—";
 	const allSameReps = sets.every((s) => s.reps === sets[0]?.reps);
+	if (timed) {
+		if (allSameReps && sets[0]) {
+			const hold = formatHoldSeconds(sets[0].reps);
+			return tracksWeight
+				? `${sets.length} × ${hold} @ ${formatWeight(sets[0].weight, unit)}`
+				: `${sets.length} × ${hold}`;
+		}
+		if (!tracksWeight) {
+			return sets.map((s) => formatHoldSeconds(s.reps)).join(", ");
+		}
+		return sets.map((s) => `${formatHoldSeconds(s.reps)}@${s.weight}`).join(", ") + ` ${unit}`;
+	}
 	if (!tracksWeight) {
 		if (allSameReps && sets[0]) return `${sets.length} × ${sets[0].reps}`;
 		return sets.map((s) => s.reps.toString()).join(", ");
@@ -31,6 +48,12 @@ export function formatSetsSummary(sets: SetLog[], unit: WeightUnit, tracksWeight
 		return `${sets.length} × ${sets[0].reps} @ ${formatWeight(sets[0].weight, unit)}`;
 	}
 	return sets.map((s) => `${s.reps}@${s.weight}`).join(", ") + ` ${unit}`;
+}
+
+/** Format a hold duration stored as seconds (e.g. 45 → "45s", 90 → "90s"). */
+export function formatHoldSeconds(seconds: number): string {
+	const s = Math.max(0, Math.round(seconds));
+	return `${s}s`;
 }
 
 export function totalReps(sets: SetLog[]): number {

@@ -20,6 +20,7 @@ export function templateToBlock(
 			...(ex.group ? { group: ex.group } : {}),
 			...(ex.dropSet === true ? { dropSet: true } : {}),
 			...(ex.toFailure === true ? { toFailure: true } : {}),
+			...(ex.timed === true ? { timed: true } : {}),
 		})),
 		cardio: (template.cardio ?? []).map((c) => ({
 			name: c.name,

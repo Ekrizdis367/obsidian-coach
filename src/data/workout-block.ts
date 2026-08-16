@@ -112,6 +112,7 @@ function normalizeExercise(raw: Record<string, unknown>): BlockExercise {
 	}
 	if (raw.dropSet === true) result.dropSet = true;
 	if (raw.toFailure === true) result.toFailure = true;
+	if (raw.timed === true) result.timed = true;
 	return result;
 }
 
@@ -190,6 +191,7 @@ export function serializeWorkoutBlock(block: WorkoutBlock): string {
 		if (ex.group) entry.group = ex.group;
 		if (ex.dropSet === true) entry.dropSet = true;
 		if (ex.toFailure === true) entry.toFailure = true;
+		if (ex.timed === true) entry.timed = true;
 		return entry;
 	});
 	if (block.cardio.length > 0) {

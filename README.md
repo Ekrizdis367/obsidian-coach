@@ -122,6 +122,24 @@ exercises:
       - { reps: 14, weight: 0 }
 ```
 
+### Timed holds
+
+Toggle **Timed** (timer icon) on a template exercise when you want sets measured in **seconds** instead of reps — planks, L-sits, hollow body holds, and similar isometrics. Off by default: push-ups, pull-ups, and other set-based bodyweight work stay exactly as they are. Turning timed on clears drop-set / to-failure for that exercise. In YAML, `target.reps` and each log `reps` value are seconds:
+
+```yaml
+exercises:
+  - name: Plank
+    timed: true
+    tracksWeight: false
+    target: { sets: 3, reps: 60, weight: 0 }
+    log:
+      - { reps: 55, weight: 0 }
+      - { reps: 50, weight: 0 }
+      - { reps: 45, weight: 0 }
+```
+
+Analytics treats timed sessions as hold time (best hold PR, weekly hold totals) rather than rep volume.
+
 ### Workout duration auto-tracking
 
 You don't need to start a stopwatch — when you log your first set, the block records `startedAt` (ISO timestamp). Every subsequent logged set bumps `endedAt`. The header shows the running elapsed time (e.g. **45 min**) and the analytics view rolls every workout into average / longest session stats. Unlogging a set re-derives both timestamps from whatever's still logged.

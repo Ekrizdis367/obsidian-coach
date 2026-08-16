@@ -335,7 +335,12 @@ pre.wp-embed-host,
 }
 
 .wp-set--bodyweight {
-	/* 4 columns: set# / reps / "reps" / commit. */
+	/* 4 columns: set# / value / "reps"|"sec" / commit. */
+	grid-template-columns: 22px minmax(60px, 1fr) auto auto;
+}
+
+.wp-set--timed.wp-set--bodyweight {
+	/* Same layout as bodyweight; unit label is "sec". */
 	grid-template-columns: 22px minmax(60px, 1fr) auto auto;
 }
 
@@ -721,13 +726,18 @@ pre.wp-embed-host,
 	color: var(--text-error, var(--text-accent));
 }
 
+.wp-template-badge--timed {
+	background: color-mix(in srgb, var(--color-blue, var(--interactive-accent)) 22%, transparent);
+	color: var(--color-blue, var(--interactive-accent));
+}
+
 .wp-template-badge--group {
 	background: color-mix(in srgb, var(--interactive-accent) 20%, transparent);
 	color: var(--interactive-accent);
 }
 
 /* Highlight icon-toggle buttons in the template editor when their flag
- * is on (drop-set, to-failure). Uses Obsidian's standard accent color. */
+ * is on (drop-set, to-failure, timed). Uses Obsidian's standard accent color. */
 .wp-template-modal button.wp-template-toggle--active {
 	background: color-mix(in srgb, var(--interactive-accent) 22%, transparent);
 	color: var(--interactive-accent);
@@ -2272,123 +2282,213 @@ pre.wp-embed-host,
 
 /* --- Hearth (today macros glance) ---------------------------------------- */
 
+.workspace-leaf-content[data-type="coach-hearth"] > .view-header {
+	display: none;
+}
+
+/* Same node as .wp-hearth — keep this selector specific enough to win over
+ * Obsidian's .view-content padding, and never set padding:0 here or it
+ * cancels the outer inset around the tiles. */
+.workspace-leaf-content[data-type="coach-hearth"] > .view-content.wp-hearth {
+	box-sizing: border-box;
+	height: 100%;
+	min-height: 0;
+	padding: 14px;
+	overflow: hidden;
+}
+
 .wp-hearth {
-	padding: 10px 12px 12px;
+	--hearth-cals: var(--color-orange, #e67e22);
+	--hearth-protein: var(--color-red, #e74c3c);
+	--hearth-carbs: var(--color-yellow, #f1c40f);
+	--hearth-fats: var(--color-purple, #9b59b6);
+	--hearth-fiber: var(--color-green, #5fa463);
+	--hearth-water: var(--color-blue, #5b8cd6);
+
 	display: flex;
 	flex-direction: column;
-	gap: 10px;
-	height: 100%;
-	box-sizing: border-box;
-	overflow: auto;
-}
-
-.wp-hearth-header {
-	display: flex;
-	flex-wrap: wrap;
-	align-items: baseline;
-	gap: 4px 10px;
-}
-
-.wp-hearth-title-row {
-	display: inline-flex;
-	align-items: center;
-	gap: 6px;
-}
-
-.wp-hearth-icon {
-	display: inline-flex;
-	color: var(--text-muted);
-}
-
-.wp-hearth-icon .svg-icon {
-	width: 16px;
-	height: 16px;
-}
-
-.wp-hearth-title {
-	font-weight: 600;
-	font-size: var(--font-ui-medium, 14px);
-}
-
-.wp-hearth-date {
-	color: var(--text-muted);
-	font-size: var(--font-ui-small, 12px);
-	font-variant-numeric: tabular-nums;
-}
-
-.wp-hearth-open {
-	margin-left: auto;
-	background: transparent;
-	border: none;
-	color: var(--text-accent);
-	cursor: pointer;
-	padding: 0;
-	font-size: var(--font-ui-small, 12px);
-}
-
-.wp-hearth-open:hover {
-	color: var(--text-normal);
-	text-decoration: underline;
+	gap: 8px;
 }
 
 .wp-hearth-goals {
+	flex: 1 1 auto;
+	min-height: 0;
 	display: grid;
 	grid-template-columns: repeat(2, minmax(0, 1fr));
-	gap: 6px;
+	grid-template-rows: repeat(2, minmax(0, 1fr));
+	gap: 8px;
+}
+
+.wp-hearth-goals--with-fiber {
+	grid-template-rows: repeat(3, minmax(0, 1fr));
 }
 
 .wp-hearth-goals .wp-macro {
-	padding: 6px 8px;
-	gap: 3px;
+	box-sizing: border-box;
+	min-height: 0;
+	overflow: hidden;
+	display: flex;
+	flex-direction: column;
+	justify-content: space-between;
+	gap: 8px;
+	padding: 10px;
+	border: 1px solid color-mix(in srgb, var(--hearth-accent, var(--interactive-accent)) 28%, transparent);
+	border-radius: var(--radius-s, 4px);
+	box-shadow: inset 2px 0 0 var(--hearth-accent, var(--interactive-accent));
+	background: color-mix(in srgb, var(--hearth-accent, var(--interactive-accent)) 14%, var(--background-primary));
 }
 
 .wp-hearth-goals .wp-macro-head {
-	font-size: 11px;
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 6px;
+	min-width: 0;
+	flex: 0 0 auto;
+}
+
+.wp-hearth-goals .wp-macro-label {
+	font-size: 10px;
+	font-weight: 700;
+	letter-spacing: 0.05em;
+	text-transform: uppercase;
+	color: var(--hearth-accent, var(--text-muted));
+	white-space: nowrap;
+}
+
+.wp-hearth-goals .wp-macro-pct {
+	font-size: 10px;
+	font-weight: 600;
+	font-variant-numeric: tabular-nums;
+	color: var(--hearth-accent, var(--text-muted));
+	opacity: 0.9;
+	flex-shrink: 0;
+}
+
+/* Beat global .wp-macro-bar / .wp-water-bar (flex:1) so tracks stay a fixed
+ * inset strip instead of stretching or hugging the tile edge. */
+.wp-hearth-goals .wp-macro-bar,
+.wp-hearth-water .wp-water-bar {
+	flex: 0 0 8px;
+	align-self: stretch;
+	width: 100%;
+	max-width: 100%;
+	min-width: 0;
+	height: 8px;
+	min-height: 8px;
+	max-height: 8px;
+	margin-top: auto;
+	box-sizing: border-box;
+	border-radius: 999px;
+	overflow: hidden;
 }
 
 .wp-hearth-goals .wp-macro-bar {
-	height: 4px;
+	background: color-mix(in srgb, var(--hearth-accent, var(--interactive-accent)) 22%, var(--background-modifier-border));
+}
+
+.wp-hearth-goals .wp-macro-bar-fill {
+	height: 100%;
+	border-radius: 999px;
+	background: var(--hearth-accent, var(--interactive-accent));
+}
+
+.wp-hearth-goals .wp-macro--calories { --hearth-accent: var(--hearth-cals); }
+.wp-hearth-goals .wp-macro--protein { --hearth-accent: var(--hearth-protein); }
+.wp-hearth-goals .wp-macro--carbs { --hearth-accent: var(--hearth-carbs); }
+.wp-hearth-goals .wp-macro--fats { --hearth-accent: var(--hearth-fats); }
+.wp-hearth-goals .wp-macro--fiber { --hearth-accent: var(--hearth-fiber); }
+
+.wp-hearth-goals .wp-macro--over .wp-macro-pct {
+	color: var(--text-error, #c0392b);
+}
+
+.wp-hearth-goals .wp-macro--over .wp-macro-bar-fill {
+	background: var(--text-error, #c0392b);
 }
 
 .wp-hearth-water {
+	flex: 0 0 auto;
+	box-sizing: border-box;
 	display: flex;
 	flex-direction: column;
-	gap: 4px;
-	padding: 6px 8px;
-	background: var(--background-primary);
+	justify-content: space-between;
+	gap: 8px;
+	padding: 10px;
 	border-radius: var(--radius-s, 4px);
+	border: 1px solid color-mix(in srgb, var(--hearth-water) 28%, transparent);
+	background: color-mix(in srgb, var(--hearth-water) 14%, var(--background-primary));
+	box-shadow: inset 2px 0 0 var(--hearth-water);
 }
 
 .wp-hearth-water-head {
 	display: flex;
-	align-items: center;
+	align-items: baseline;
 	justify-content: space-between;
-	gap: 8px;
-	font-size: 11px;
+	gap: 6px;
+	flex: 0 0 auto;
 }
 
 .wp-hearth-water-label {
 	display: inline-flex;
 	align-items: center;
-	gap: 4px;
-	color: var(--text-muted);
+	gap: 5px;
+	color: var(--hearth-water);
+	font-size: 10px;
+	font-weight: 700;
+	letter-spacing: 0.05em;
+	text-transform: uppercase;
 }
 
-.wp-hearth-water-value {
+.wp-hearth-water-label .wp-water-icon {
+	display: inline-flex;
+	color: var(--hearth-water);
+}
+
+.wp-hearth-water-label .wp-water-icon .svg-icon {
+	width: 12px;
+	height: 12px;
+}
+
+.wp-hearth-water-pct {
+	font-size: 10px;
+	font-weight: 600;
 	font-variant-numeric: tabular-nums;
-	color: var(--text-normal);
+	color: var(--hearth-water);
+	opacity: 0.9;
 }
 
 .wp-hearth-water .wp-water-bar {
-	height: 4px;
+	background: color-mix(in srgb, var(--hearth-water) 22%, var(--background-modifier-border));
+}
+
+.wp-hearth-water .wp-water-bar-fill {
+	height: 100%;
+	border-radius: 999px;
+	background: var(--hearth-water);
+}
+
+.wp-hearth-water--done {
+	box-shadow: inset 2px 0 0 var(--hearth-fiber);
+	border-color: color-mix(in srgb, var(--hearth-fiber) 28%, transparent);
+	background: color-mix(in srgb, var(--hearth-fiber) 14%, var(--background-primary));
+}
+
+.wp-hearth-water--done .wp-hearth-water-label,
+.wp-hearth-water--done .wp-hearth-water-pct,
+.wp-hearth-water--done .wp-water-icon {
+	color: var(--hearth-fiber);
 }
 
 .wp-hearth-empty {
 	display: flex;
 	flex-direction: column;
-	align-items: flex-start;
+	align-items: center;
+	justify-content: center;
 	gap: 10px;
-	padding: 4px 0;
+	padding: 12px;
+	flex: 1 1 auto;
+	text-align: center;
 }
 
 .wp-hearth-empty-copy {

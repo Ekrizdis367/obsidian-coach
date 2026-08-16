@@ -52,6 +52,13 @@ export interface TemplateExercise {
 	 * and any reps > 0 satisfies the set-complete check.
 	 */
 	toFailure?: boolean;
+	/**
+	 * When true, this exercise is timed (holds / isometrics): `target.reps`
+	 * and each log entry's `reps` are seconds, not repetitions. Off by
+	 * default so set-based bodyweight work (push-ups, pull-ups) is unchanged.
+	 * Mutually exclusive with `toFailure` and `dropSet`.
+	 */
+	timed?: boolean;
 }
 
 export interface TemplateCardio {
@@ -124,6 +131,11 @@ export interface BlockExercise {
 	 * sets are candidates for rep PRs. Missing/false → normal exercise.
 	 */
 	toFailure?: boolean;
+	/**
+	 * Mirrors `TemplateExercise.timed`. When true, target/log `reps` are
+	 * seconds (holds). Missing/false → normal rep-based exercise.
+	 */
+	timed?: boolean;
 }
 
 export interface CardioTarget {
@@ -236,6 +248,12 @@ export type HistoryEntry =
 		dropSet?: boolean;
 		/** True if this exercise instance was logged as a to-failure exercise. Excluded from all PR detection (weight, e1RM, reps, volume). */
 		toFailure?: boolean;
+		/**
+		 * True if this exercise was logged as timed (holds). `sets[].reps`
+		 * are seconds. Excluded from e1RM / volume PRs; longest hold uses
+		 * the duration PR kind (seconds).
+		 */
+		timed?: boolean;
 	}
 	| {
 		kind: "cardio";
@@ -352,6 +370,11 @@ export interface PRRecord {
 	/** Companion fields, populated based on kind. */
 	weight?: number;
 	reps?: number;
+	/**
+	 * For `duration` PRs: cardio uses minutes; timed strength holds use
+	 * seconds. Absent → treat as minutes (legacy cardio).
+	 */
+	durationUnit?: "min" | "sec";
 	date: string;
 	filePath: string;
 }
