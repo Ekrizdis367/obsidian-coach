@@ -380,9 +380,12 @@ export class WorkoutSettingsTab extends PluginSettingTab {
 			{
 				name: "",
 				searchable: false,
-				render: (setting, group) => {
-					setting.settingEl.remove();
-					const wrap = group.listEl.createDiv({ cls: "wp-fitness-goal-preview" });
+				render: (setting) => {
+					// Keep the setting row — removing settingEl drops custom
+					// content in the declarative settings host.
+					setting.settingEl.addClass("wp-fitness-goal-setting");
+					setting.controlEl.empty();
+					const wrap = setting.controlEl.createDiv({ cls: "wp-fitness-goal-preview" });
 					const spec = FITNESS_GOAL_SPECS[settings.fitnessGoal];
 					wrap.createDiv({ cls: "wp-fitness-goal-summary", text: spec.summary });
 				},
@@ -440,13 +443,11 @@ export class WorkoutSettingsTab extends PluginSettingTab {
 			{
 				name: "Daily goals",
 				desc: "Targets shown as progress bars in the meal log block.",
-			},
-			{
-				name: "",
-				searchable: false,
-				render: (setting, group) => {
-					setting.settingEl.remove();
-					const grid = group.listEl.createDiv({ cls: "wp-goals-grid" });
+				render: (setting) => {
+					setting.settingEl.addClass("wp-goals-setting");
+					setting.controlEl.empty();
+					const host = setting.controlEl.createDiv({ cls: "wp-goals-host" });
+					const grid = host.createDiv({ cls: "wp-goals-grid" });
 					const macroFields: { key: keyof NutritionGoals; label: string; unit: string }[] = [
 						{ key: "calories", label: "Calories", unit: "cal" },
 						{ key: "protein", label: "Protein", unit: "g" },
@@ -477,7 +478,7 @@ export class WorkoutSettingsTab extends PluginSettingTab {
 						inputs.set(macro.key, input);
 					}
 
-					this.renderRecommendCalculator(group.listEl, settings, inputs);
+					this.renderRecommendCalculator(host, settings, inputs);
 				},
 			},
 		];
@@ -615,11 +616,13 @@ export class WorkoutSettingsTab extends PluginSettingTab {
 				},
 			},
 			{
-				name: "",
+				name: "Suggest from body weight",
+				desc: "Estimate a daily water target from your current weight.",
 				searchable: false,
-				render: (setting, group) => {
-					setting.settingEl.remove();
-					const calcWrap = group.listEl.createDiv({ cls: "wp-recommend-block" });
+				render: (setting) => {
+					setting.settingEl.addClass("wp-recommend-setting");
+					setting.controlEl.empty();
+					const calcWrap = setting.controlEl.createDiv({ cls: "wp-recommend-block" });
 					const status = calcWrap.createDiv({ cls: "wp-recommend-status" });
 					const buttons = calcWrap.createDiv({ cls: "wp-recommend-actions" });
 					const calcBtn = new ButtonComponent(buttons).setButtonText("Calculate from body weight");
